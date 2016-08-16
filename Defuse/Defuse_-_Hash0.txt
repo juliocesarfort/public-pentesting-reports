@@ -1,0 +1,314 @@
+-----------------------------------------------------------------------
+                        Security Audit of Hash0
+                             Taylor Hornby
+                            April 13,  2014
+-----------------------------------------------------------------------
+
+1. Introduction
+
+   This report is the result of a 5-hour audit of Hash0 [1]. Hash0 is
+   a tool for generating different passwords for websites based on
+   a master password, similar to pwdhash [2] and hashpass [3].
+
+   The audit scope and threat model are discussed in sections 1.2 and
+   1.3 respectively. Section 2 gives an overview of Hash0's
+   cryptography. Section 3 presents security issues found during the
+   audit. Section 4 recommends improvements. Section 5 lists future
+   work, and Section 6 concludes.
+
+1.2 Audit Scope
+
+   This audit focused on the implementation and design of Hash0's
+   cryptography, and did not explicitly check for other kinds of
+   vulnerabilities.
+
+   While some light review of the supporting libraries was performed,
+   the audit focused on code unique to Hash0 and did not include
+   significant time reviewing the PasswordMaker, SJCL, or CryptoJS
+   libraries.
+
+   The SHA1 of the commit that was reviewed is:
+
+        09338e4f0f453e8ad95859e0f882cf7c7d54aa26
+
+1.3 Threat Model
+
+   There are three types of entities involved in every use of Hash0:
+
+        1. The User
+
+            The User is the person using the Hash0 software. The User
+            knows the master password and uses Hash0 to generate
+            site-specific passwords from the one master password.
+
+        2. The Storage Provider
+
+            The Storage Provider is responsible for storing metadata
+            like the salts and synchronization settings. We assume this
+            entity is controlled by the adversary.
+
+        3. The Website
+
+            This is the website the user is using Hash0 to generate
+            a password for. The website provides a standard username and
+            password login interface and is not necessarily aware that
+            Hash0 is being used. We assume this entity is controlled by
+            the adversary.
+
+   The following list summarizes some kinds of attacks that would be
+   considered security flaws in Hash0.
+
+        - Attacks that leak useful information about the Master Password
+          to any entity other than the User, even when the attacker can
+          see many generated passwords.
+
+        - Attacks that leak passwords for one Website to any entity
+          other than the User or the intended Website.
+
+        - Attacks that cause weak passwords to be generated.
+
+        - Attacks that speed up the recovery of the master key from
+          derived data (ciphertext, generated passwords, etc).
+
+2. Cryptography Design
+
+   Given a master password, Hash0 runs it through 100 iterations PBKDF2
+   with the salt "saltysnacks" to produce 512 bits of output*. That
+   output is used as a key to HMAC the string "zerobin1337". The HMAC
+   output is converted to a 30-character password, called the
+   "encryption password", with a base conversion algorithm. This
+   password is used for encrypting and decrypting data stored by the
+   Storage Provider.
+
+   The data stored by the Storage Provider is encrypted and decrypted
+   using SJCL's encrypt() and decrypt() convenience functions, with the
+   default parameters. The default is to derive an 128-bit key from the
+   password with PBKDF2 then encrypt the data with AES in CCM mode,
+   which is an authenticated encryption mode.
+
+   To generate a password for a website, Hash0 runs the master password
+   through 100 iterations of PBKDF2 with a random salt** to generate 512
+   bits of output.  That output is used as a key to HMAC the string
+   which is the domain name of the website prefixed to the password
+   number (used to generate multiple passwords for the same website).
+   The HMAC output is converted to a password of configurable length
+   using a base conversion algorithm.
+
+   * - The PBKDF2 output is encoded in hex and is used as the HMAC key
+       without being decoded.
+
+   **- The salt may be the empty string if the Storage Provider URL is
+       not configured. See Issue 3.7. The salt is encoded (and used) as
+       a 128-bit hex string.
+
+3. Issues
+
+   This section lists the issues discovered during the audit. We do not
+   attempt to assign criticality or exploitability ratings to the
+   issues.
+
+3.1 Encryption is Stored in LocalStorage
+
+   The encryption key, which is used to encrypt and decrypt the data
+   stored by the Storage Provider, is stored in localStorage. Unless the
+   browser is in private browsing mode, it will be written to disk. It
+   should be kept it memory.
+
+   The Hash0 author was aware of this issue before this audit began.
+
+3.2 Salts Generated with Math.random()
+
+   The salts are generated with CryptoJS's WordArray.random(), which
+   uses Math.random(). This is insecure. Salts must be generated with
+   a CSPRNG.
+
+   Use window.crypto.getRandomValues() or the SJCL cryptographic random
+   number generator.
+
+   The Hash0 author was aware of this issue before this audit began.
+
+3.3 Low PBKDF2 Iteration Count
+
+   Only 100 iterations of PBKDF2 are used when deriving the encryption
+   password or a website password. This low value was explicitly chosen
+   for performance reasons. According to these benchmarks...
+
+        https://wiki.mozilla.org/SJCL_PBKDF2_Benchmark
+
+   ...most platforms can support many more iterations. The iteration
+   count should be increased to 1000.
+
+   This is probably because 1000 iterations of PBKDF2 actually are being
+   used, but not in the right place. SJCL's encrypt() and decrypt()
+   functions compute 1000 iterations of PBKDF2 to turn the passed string
+   into a key. To avoid this, pass a key (bitArray), not a string, to
+   encrypt() and decrypt().
+
+   The Hash0 author was aware of this issue before the audit began.
+
+3.4 Corrupted Ciphertext Exception is Not Caught
+
+   The SJCL decrypt() function will throw sjcl.exception.corrupt if the
+   key is wrong or if an attacker has tampered with the ciphertext.
+   Hash0 does not handle this case, and simply crashes without giving
+   the user any explanation.
+
+   This exception should be caught, and the user should be told that
+   either the password they entered was wrong, or an attacker has
+   tampered with the data saved by the Storage Provider.
+
+3.5 Encryption Password Derived with Constant Salt
+
+   The encryption password is derived from the master password with
+   a constant salt:
+
+        generatePassword(
+            'on', 30, 'zerobin', '1337', 'saltysnacks', password
+        );
+
+   This is insecure, because the same master password will always
+   generate the same encryption password, so rainbow tables and lookup
+   tables can be used to crack the encrypted data.
+
+   Fixing this is left as future work. See Section 5.3.
+
+3.6 Migration Code Always Runs
+
+   This is not a security issue. The code to prompt the user if they
+   want to migrate will always run, because the "if" statement's
+   condition will always be true:
+
+        var password = $('#setup_master').val();
+        localStorage['encryptionPassword'] = // ... snipped ...
+
+        var url = $('#setup_url').val();
+        localStorage['settingsURL'] = url;
+
+        // Check if there is existing settings
+        if (defined(localStorage['settingsURL']) &&
+            defined(localStorage['encryptionPassword'])) {
+
+3.7 Empty Salt Used Without Warning
+
+   If the URL to the Storage Provider is not provided or is empty, an
+   empty salt is used:
+
+        if (!defined(localStorage['encryptionPassword']) ||
+            !defined(localStorage['settingsURL']) ||
+            localStorage['settingsURL'] == '') {
+            salt = '';
+        } else {
+            ...
+
+   Instead of using an empty salt, display an error (refuse to generate
+   passwords), or warn the user and ask them to opt-in to using the
+   empty salt.
+
+3.8 HMAC Key is a Hex String
+
+   When deriving the encryption password or a website password, the
+   string used for the HMAC key is hex-encoded. This does not cause any
+   immediate weaknesses, however using a key that isn't uniformly
+   distributed is not ideal and probably breaks some of HMAC's security
+   proofs.
+
+3.9 Salt is a Hex String
+
+   The salt passed to PBKDF2 is a hex string. While this doesn't cause
+   any immediate security problems, it is not ideal.
+
+3.10 Password is Output Before Settings are Saved
+
+   When generating a website password, the password is shown to the user
+   before the settings are uploaded. This means an attacker who can
+   prevent the settings from being uploaded (e.g. by a DoS attack) can
+   cause password reuse in some cases:
+
+        1. User generates a password for example.org.
+        2. Example.org's password database is breached.
+        3. User generates a new password, but the upload fails.
+        4. Example.org's password database is breached again.
+        5. User generates a new password, but this time it's the same as
+           the one generated in (4) because the upload with the
+           incremented number failed.
+
+3.11 Browser Tab Race Conditions
+
+   Because of a TOCTTOU bug, it's possible for the password to be
+   entered in to the wrong tab. 
+    
+   The init() function first obtains the password for the current param
+   (domain), and then, AFTER it already has the password, it inserts it
+   into the current tab. The tab might have changed in between.
+    
+   A malicious website could potentially "steal focus" at just the right
+   time to steal a password that was intended for another website.
+
+   To fix this, make sure that the tab the password is going to be
+   inserted into is the same as the one that was the source of param.
+
+4. Recommendations
+
+4.1 Unit Tests
+
+   Hash0 could benefit from unit tests, especially of important
+   functions like initWithUrl() and generatePassword().
+
+4.2 Use PBKDF2 alone, not PBKDF2 then HMAC
+
+   It doesn't seem necessary to use PBKDF2 to generate a key then to use
+   HMAC on top of that to apply the param and number. It would be better
+   to encode everything unambiguously into the PBKDF2 salt.
+
+4.3 Do Not Use Passwords as Intermediate Keys
+
+   Hash0 is somewhat strange in that instead of deriving an encryption
+   key from the password, it derives another "encryption password." This
+   is inefficient at best, and error-prone at worst. Stick to binary
+   keys whenever possible.
+
+5. Future Work
+
+5.1 Side Channel Attacks
+
+   Some of the code seems vulnerable to side-channel attacks. For
+   example, passwordmaker/hashutils.js uses charAt() to get the
+   character at an index into the character set, where the index is
+   a secret.
+
+   It could be possible for other scripts running in the browser, or
+   other processes running on the system (as other users), to extract
+   the key this way.
+
+5.2 URL Reliability
+
+   This audit did not fully explore all possible problems with the URL
+   used to find the domain name not matching up with the actual URL of
+   the page. Is it possible for a page to lie about its URL, so that
+   Hash0 is fooled into giving it the password for another website?
+
+5.3 Salting the Master Password
+
+   The encryption key is derived from the master key with a fixed salt.
+   Obviously, a random salt should be used instead. More time is needed
+   to design a secure solution.
+
+5.4 Storage Provider Replaying Old Data
+
+   What exactly happens when the Storage Provider replays an old
+   ciphertext?  This will cause old passwords to be generated, and
+   possibly some passwords re-used. What kind of risk does this pose to
+   the user?
+
+6. Conclusion
+
+   No fatal flaws in Hash0 were identified. However, there is room for
+   improvement. The most significant issues are 3.1, 3.2, 3.4, and 3.5.
+   3.11 may be very important as well, depending on how exploitable it
+   is in practice (something this audit did not investigate).
+
+7. References
+
+[1] https://github.com/dannysu/hash0
+[2] https://www.pwdhash.com/
+[3] http://www.hashapass.com/en/index.html
