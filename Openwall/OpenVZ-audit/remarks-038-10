@@ -1,0 +1,571 @@
+diff -uprN linux-2.6.8.1-ve022stab038/arch/i386/kernel/ldt.c linux-2.6.8.1-ve022stab038-m/arch/i386/kernel/ldt.c
+--- linux-2.6.8.1-ve022stab038/arch/i386/kernel/ldt.c	Fri Oct  7 06:16:48 2005
++++ linux-2.6.8.1-ve022stab038-m/arch/i386/kernel/ldt.c	Thu Oct 13 12:33:22 2005
+@@ -39,6 +39,10 @@ static int alloc_ldt(mm_context_t *pc, i
+ 	 * LDT got larger - reallocate if necessary.
+ 	 */
+ 	oldsize = pc->size;
++/* AUDIT-UN: we sanity-check for large newsize (BUG_ON in the loop below),
++ * yet we don't check for possible integer overflow on the calculation
++ * of newsize from mincount.  (This does not appear to be triggerable with
++ * the current code due to checks in the callers, hence non-security.) */
+ 	mincount = (mincount+511)&(~511);
+ 	newsize = mincount*LDT_ENTRY_SIZE;
+ 	for (i = 0; i < newsize; i += PAGE_SIZE) {
+diff -uprN linux-2.6.8.1-ve022stab038/arch/ia64/kernel/perfmon.c linux-2.6.8.1-ve022stab038-m/arch/ia64/kernel/perfmon.c
+--- linux-2.6.8.1-ve022stab038/arch/ia64/kernel/perfmon.c	Fri Oct  7 06:16:48 2005
++++ linux-2.6.8.1-ve022stab038-m/arch/ia64/kernel/perfmon.c	Thu Oct 27 08:41:03 2005
+@@ -2387,6 +2387,8 @@ pfm_bad_permissions(struct task_struct *
+ 		task->egid,
+ 		task->sgid));
+ 
++/* AUDIT-V?: need VPS check here? and/or enhance pfm_get_task() to use
++ * find_task_by_pid_ve() */
+ 	return ((current->uid != task->euid)
+ 	    || (current->uid != task->suid)
+ 	    || (current->uid != task->uid)
+@@ -2619,6 +2621,7 @@ pfm_get_task(pfm_context_t *ctx, pid_t p
+ 
+ 		read_lock(&tasklist_lock);
+ 
++/* AUDIT-V?: should be find_task_by_pid_ve()? */
+ 		p = find_task_by_pid(pid);
+ 
+ 		/* make sure task cannot go away while we operate on it */
+diff -uprN linux-2.6.8.1-ve022stab038/drivers/acpi/asus_acpi.c linux-2.6.8.1-ve022stab038-m/drivers/acpi/asus_acpi.c
+--- linux-2.6.8.1-ve022stab038/drivers/acpi/asus_acpi.c	Sat Aug 14 09:36:44 2004
++++ linux-2.6.8.1-ve022stab038-m/drivers/acpi/asus_acpi.c	Mon Oct 17 19:12:02 2005
+@@ -826,6 +826,7 @@ static int __init asus_hotk_add_fs(struc
+ 	 * and then set to -rw-rw----
+ 	 */
+ 
++/* AUDIT-UM: so much for "safe defaults"... */
+ 	if ((asus_uid == 0) && (asus_gid == 0)){
+ 		mode = S_IFREG | S_IRUGO | S_IWUGO;
+ 	} else {
+diff -uprN linux-2.6.8.1-ve022stab038/drivers/char/agp/frontend.c linux-2.6.8.1-ve022stab038-m/drivers/char/agp/frontend.c
+--- linux-2.6.8.1-ve022stab038/drivers/char/agp/frontend.c	Sat Aug 14 09:36:17 2004
++++ linux-2.6.8.1-ve022stab038-m/drivers/char/agp/frontend.c	Mon Oct 17 16:35:47 2005
+@@ -716,6 +716,7 @@ static int agp_open(struct inode *inode,
+ 	set_bit(AGP_FF_ALLOW_CLIENT, &priv->access_flags);
+ 	priv->my_pid = current->pid;
+ 
++/* AUDIT-UL, AUDIT-V?: should check a capability not available to VPS root. */
+ 	if ((current->uid == 0) || (current->suid == 0)) {
+ 		/* Root priv, can be controller */
+ 		set_bit(AGP_FF_ALLOW_CONTROLLER, &priv->access_flags);
+diff -uprN linux-2.6.8.1-ve022stab038/drivers/net/ethertap.c linux-2.6.8.1-ve022stab038-m/drivers/net/ethertap.c
+--- linux-2.6.8.1-ve022stab038/drivers/net/ethertap.c	Sat Aug 14 09:36:32 2004
++++ linux-2.6.8.1-ve022stab038-m/drivers/net/ethertap.c	Mon Oct 17 18:52:01 2005
+@@ -245,6 +245,8 @@ static __inline__ int ethertap_rx_skb(st
+ 		kfree_skb(skb);
+ 		return -EINVAL;
+ 	}
++/* AUDIT-UL: doesn't this grant privs to UID 0 even when running SECURE_NOROOT? */
++/* AUDIT-V?: should this be allowed for VPS root? */
+ 	if (NETLINK_CREDS(skb)->uid) {
+ 		printk(KERN_INFO "%s : user %d\n", dev->name, NETLINK_CREDS(skb)->uid);
+ 		kfree_skb(skb);
+diff -uprN linux-2.6.8.1-ve022stab038/drivers/net/wan/sbni.c linux-2.6.8.1-ve022stab038-m/drivers/net/wan/sbni.c
+--- linux-2.6.8.1-ve022stab038/drivers/net/wan/sbni.c	Sat Aug 14 09:36:45 2004
++++ linux-2.6.8.1-ve022stab038-m/drivers/net/wan/sbni.c	Mon Oct 17 17:41:51 2005
+@@ -1321,6 +1321,7 @@ sbni_ioctl( struct net_device  *dev,  st
+ 		break;
+ 
+ 	case  SIOCDEVRESINSTATS :
++/* AUDIT-UL: should check a capability */
+ 		if( current->euid != 0 )	/* root only */
+ 			return  -EPERM;
+ 		memset( &nl->in_stats, 0, sizeof(struct sbni_in_stats) );
+@@ -1338,6 +1339,7 @@ sbni_ioctl( struct net_device  *dev,  st
+ 		break;
+ 
+ 	case  SIOCDEVSHWSTATE :
++/* AUDIT-UL: should check a capability */
+ 		if( current->euid != 0 )	/* root only */
+ 			return  -EPERM;
+ 
+@@ -1359,6 +1361,7 @@ sbni_ioctl( struct net_device  *dev,  st
+ #ifdef CONFIG_SBNI_MULTILINE
+ 
+ 	case  SIOCDEVENSLAVE :
++/* AUDIT-UL: should check a capability */
+ 		if( current->euid != 0 )	/* root only */
+ 			return  -EPERM;
+ 
+@@ -1374,6 +1377,7 @@ sbni_ioctl( struct net_device  *dev,  st
+ 		return  enslave( dev, slave_dev );
+ 
+ 	case  SIOCDEVEMANSIPATE :
++/* AUDIT-UL: should check a capability */
+ 		if( current->euid != 0 )	/* root only */
+ 			return  -EPERM;
+ 
+diff -uprN linux-2.6.8.1-ve022stab038/drivers/s390/crypto/z90main.c linux-2.6.8.1-ve022stab038-m/drivers/s390/crypto/z90main.c
+--- linux-2.6.8.1-ve022stab038/drivers/s390/crypto/z90main.c	Sat Aug 14 09:36:11 2004
++++ linux-2.6.8.1-ve022stab038-m/drivers/s390/crypto/z90main.c	Mon Oct 17 17:44:18 2005
+@@ -1870,6 +1870,7 @@ z90crypt_ioctl(struct inode *inode, stru
+ 		break;
+ 
+ 	case Z90QUIESCE:
++/* AUDIT-UL: should check a capability */
+ 		if (current->euid != 0) {
+ 			PRINTK("QUIESCE fails: euid %d\n",
+ 			       current->euid);
+diff -uprN linux-2.6.8.1-ve022stab038/fs/fcntl.c linux-2.6.8.1-ve022stab038-m/fs/fcntl.c
+--- linux-2.6.8.1-ve022stab038/fs/fcntl.c	Fri Oct  7 06:16:49 2005
++++ linux-2.6.8.1-ve022stab038-m/fs/fcntl.c	Mon Oct 17 15:37:45 2005
+@@ -439,6 +439,9 @@ static long band_table[NSIGPOLL] = {
+ static inline int sigio_perm(struct task_struct *p,
+                              struct fown_struct *fown)
+ {
++/* AUDIT-UL: shouldn't this be checking a capability instead of euid == 0? */
++/* AUDIT-VN: this does not appear to be a security problem for OVZ due to
++ * checks in send_sigio() and no intention to run SECURE_NOROOT OVZ systems. */
+ 	return ((fown->euid == 0) ||
+  	        (fown->euid == p->suid) || (fown->euid == p->uid) ||
+  	        (fown->uid == p->suid) || (fown->uid == p->uid));
+diff -uprN linux-2.6.8.1-ve022stab038/fs/open.c linux-2.6.8.1-ve022stab038-m/fs/open.c
+--- linux-2.6.8.1-ve022stab038/fs/open.c	Fri Oct  7 06:16:49 2005
++++ linux-2.6.8.1-ve022stab038-m/fs/open.c	Mon Oct 17 19:15:52 2005
+@@ -530,6 +530,7 @@ asmlinkage long sys_access(const char __
+ 	 * value below.  We should hold task_capabilities_lock,
+ 	 * but we cannot because user_path_walk can sleep.
+ 	 */
++/* AUDIT-UL: should also check for SECURE_NOROOT */
+ 	if (current->uid)
+ 		cap_clear(current->cap_effective);
+ 	else
+diff -uprN linux-2.6.8.1-ve022stab038/fs/proc/base.c linux-2.6.8.1-ve022stab038-m/fs/proc/base.c
+--- linux-2.6.8.1-ve022stab038/fs/proc/base.c	Fri Oct  7 06:16:49 2005
++++ linux-2.6.8.1-ve022stab038-m/fs/proc/base.c	Thu Oct 27 08:53:59 2005
+@@ -295,6 +295,8 @@ static int may_ptrace_attach(struct task
+ 
+ 	if (!task->mm)
+ 		goto out;
++/* AUDIT-OK: we're safe due to the uses of find_task_by_pid_ve(), but could
++ * want to enhance this with a VPS check anyway (defensive programming). */
+ 	if (((current->uid != task->euid) ||
+ 	     (current->uid != task->suid) ||
+ 	     (current->uid != task->uid) ||
+diff -uprN linux-2.6.8.1-ve022stab038/fs/umsdos/ioctl.c linux-2.6.8.1-ve022stab038-m/fs/umsdos/ioctl.c
+--- linux-2.6.8.1-ve022stab038/fs/umsdos/ioctl.c	Sat Aug 14 09:36:16 2004
++++ linux-2.6.8.1-ve022stab038-m/fs/umsdos/ioctl.c	Mon Oct 17 17:41:16 2005
+@@ -115,6 +115,7 @@ dentry->d_parent->d_name.name, dentry->d
+ 		goto out;
+ 
+ 	ret = -EPERM;
++/* AUDIT-UL: should check a capability */
+ 	if (current->euid != 0 && cmd != UMSDOS_GETVERSION)
+ 		goto out;
+ 
+diff -uprN linux-2.6.8.1-ve022stab038/ipc/mqueue.c linux-2.6.8.1-ve022stab038-m/ipc/mqueue.c
+--- linux-2.6.8.1-ve022stab038/ipc/mqueue.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/ipc/mqueue.c	Mon Nov 14 15:45:10 2005
+@@ -269,6 +269,10 @@ static int mqueue_create(struct inode *d
+ 	int error;
+ 
+ 	spin_lock(&mq_lock);
++/* AUDIT-VM: queues_count is not virtualized - possible to DoS the
++ * functionality for the entire system? */
++/* AUDIT-VM: potential integer overflow, possible other side-effects of
++ * queues_count becoming very large? */
+ 	if (queues_count >= queues_max && !capable(CAP_SYS_RESOURCE)) {
+ 		error = -ENOSPC;
+ 		goto out_lock;
+@@ -572,6 +576,7 @@ static int mq_attr_ok(struct mq_attr *at
+ {
+ 	if (attr->mq_maxmsg <= 0 || attr->mq_msgsize <= 0)
+ 		return 0;
++/* AUDIT-OK: semi-OK due to HARD_MSGMAX */
+ 	if (capable(CAP_SYS_RESOURCE)) {
+ 		if (attr->mq_maxmsg > HARD_MSGMAX)
+ 			return 0;
+diff -uprN linux-2.6.8.1-ve022stab038/ipc/msg.c linux-2.6.8.1-ve022stab038-m/ipc/msg.c
+--- linux-2.6.8.1-ve022stab038/ipc/msg.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/ipc/msg.c	Mon Nov 14 15:35:34 2005
+@@ -480,6 +480,11 @@ asmlinkage long sys_msgctl (int msqid, i
+ 	case IPC_SET:
+ 	{
+ 		err = -EPERM;
++/* AUDIT-VM: load_msg() does beancounted allocations, however allowing for
++ * message queues to grow arbitrarily large might not be safe because of
++ * potential integer overflows and the use of plain linked lists (slow).
++ * Recommendation: either drop the capability check or impose another
++ * limitation. */
+ 		if (setbuf.qbytes > msg_ctlmnb && !capable(CAP_SYS_RESOURCE))
+ 			goto out_unlock_up;
+ 
+@@ -604,6 +609,8 @@ retry:
+ 	if (err)
+ 		goto out_unlock_free;
+ 
++/* AUDIT-V?: potential integer overflow here if q_qbytes is very large and
++ * thus msq->q_cbytes and/or msq->q_qnum were allowed to grow large. */
+ 	if(msgsz + msq->q_cbytes > msq->q_qbytes ||
+ 		1 + msq->q_qnum > msq->q_qbytes) {
+ 		struct msg_sender s;
+@@ -635,6 +642,8 @@ retry:
+ 
+ 	if(!pipelined_send(msq,msg)) {
+ 		/* noone is waiting for this message, enqueue it */
++/* AUDIT-V?: the linked list as well as q_cbytes and q_qnum may grow very
++ * large if q_qbytes allows for that. */
+ 		list_add_tail(&msg->m_list,&msq->q_messages);
+ 		msq->q_cbytes += msgsz;
+ 		msq->q_qnum++;
+diff -uprN linux-2.6.8.1-ve022stab038/kernel/ptrace.c linux-2.6.8.1-ve022stab038-m/kernel/ptrace.c
+--- linux-2.6.8.1-ve022stab038/kernel/ptrace.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/kernel/ptrace.c	Thu Oct 27 08:58:00 2005
+@@ -89,6 +89,11 @@ int ptrace_attach(struct task_struct *ta
+ 		goto bad;
+ 	if (!task->mm)
+ 		goto bad;
++/* AUDIT-OK: we're safe due to the uses of find_task_by_pid_ve() in arch
++ * code on i386 and x86_64 (including 32-bit compat), but we could want to
++ * enhance this with a VPS check anyway to be safe for other archs and as
++ * a defensive programming measure. */
++/* AUDIT-VH: ia64 ptrace.c is not patched */
+ 	if(((current->uid != task->euid) ||
+ 	    (current->uid != task->suid) ||
+ 	    (current->uid != task->uid) ||
+diff -uprN linux-2.6.8.1-ve022stab038/kernel/sys.c linux-2.6.8.1-ve022stab038-m/kernel/sys.c
+--- linux-2.6.8.1-ve022stab038/kernel/sys.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/kernel/sys.c	Thu Oct 20 03:45:46 2005
+@@ -754,6 +754,13 @@ int set_user(uid_t new_ruid, int dumpcle
+ {
+ 	struct user_struct *new_user;
+ 
++/* AUDIT-UM: This may cause setreuid, setuid, and setresuid to fail on
++ * transient errors, which older and/or poorly-written user-space apps
++ * might not expect.  A similar Linux 2.2 kernel problem is known to
++ * result in a root compromise with older versions of Sendmail:
++ * http://www.sendmail.org/sendmail.8.10.1.LINUX-SECURITY.txt
++ * That Linux 2.2 problem had been fixed, however this new one is
++ * introduced somewhere between 2.2 and 2.4... */
+ 	new_user = alloc_uid(new_ruid);
+ 	if (!new_user)
+ 		return -EAGAIN;
+diff -uprN linux-2.6.8.1-ve022stab038/kernel/ub/ub_sys.c linux-2.6.8.1-ve022stab038-m/kernel/ub/ub_sys.c
+--- linux-2.6.8.1-ve022stab038/kernel/ub/ub_sys.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/kernel/ub/ub_sys.c	Thu Oct 20 04:05:44 2005
+@@ -60,6 +60,8 @@ asmlinkage long sys_setluid(uid_t uid)
+ 	struct task_beancounter *task_bc;
+ 	int error;
+ 
++/* AUDIT-VN: better check ve_is_super() first, then CAP_SETUID, and only then
++ * proceed to lookup task_bc. */
+ 	task_bc = task_bc(current);
+ 
+ 	/* You may not disown a setluid */
+diff -uprN linux-2.6.8.1-ve022stab038/kernel/vecalls.c linux-2.6.8.1-ve022stab038-m/kernel/vecalls.c
+--- linux-2.6.8.1-ve022stab038/kernel/vecalls.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/kernel/vecalls.c	Thu Oct 27 08:11:43 2005
+@@ -1899,6 +1899,7 @@ static int do_env_create(envid_t veid, u
+ 		goto err_ve_hook;
+ 
+ 	move_task(tsk, ve, old);
++/* AUDIT-V?F: race */
+ 	set_task_caps(tsk, ve);
+ 
+ 	ve->is_running = 1;
+@@ -2066,6 +2067,7 @@ static int do_env_enter(struct ve_struct
+ 	SET_VE_LINKS(tsk);
+ 	write_unlock_irq(&tasklist_lock);
+ 
++/* AUDIT-VMF: race */
+ 	set_task_caps(tsk, ve);
+ 	err = VE_TASK_INFO(tsk)->owner_env->veid;
+ 
+diff -uprN linux-2.6.8.1-ve022stab038/mm/mlock.c linux-2.6.8.1-ve022stab038-m/mm/mlock.c
+--- linux-2.6.8.1-ve022stab038/mm/mlock.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/mm/mlock.c	Thu Oct 20 05:04:53 2005
+@@ -128,6 +128,7 @@ asmlinkage long sys_mlock(unsigned long 
+ 	start &= PAGE_MASK;
+ 
+ 	locked = len >> PAGE_SHIFT;
++/* AUDIT-UL, AUDIT-V?: integer overflow, may bypass RLIMIT_MEMLOCK */
+ 	locked += current->mm->locked_vm;
+ 
+ 	lock_limit = current->rlim[RLIMIT_MEMLOCK].rlim_cur;
+diff -uprN linux-2.6.8.1-ve022stab038/mm/mmap.c linux-2.6.8.1-ve022stab038-m/mm/mmap.c
+--- linux-2.6.8.1-ve022stab038/mm/mmap.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/mm/mmap.c	Thu Oct 20 05:10:23 2005
+@@ -848,6 +848,8 @@ unsigned long do_mmap_pgoff(struct file 
+ 	/* mlock MCL_FUTURE? */
+ 	if (vm_flags & VM_LOCKED) {
+ 		unsigned long locked = mm->locked_vm << PAGE_SHIFT;
++/* AUDIT-UL, AUDIT-V?: integer overflow, RLIMIT_MEMLOCK bypass (the checks on
++ * len above likely mitigate this for many systems). */
+ 		locked += len;
+ 		if (locked > current->rlim[RLIMIT_MEMLOCK].rlim_cur)
+ 			return -EAGAIN;
+diff -uprN linux-2.6.8.1-ve022stab038/net/bridge/netfilter/ebtables.c linux-2.6.8.1-ve022stab038-m/net/bridge/netfilter/ebtables.c
+--- linux-2.6.8.1-ve022stab038/net/bridge/netfilter/ebtables.c	Sat Aug 14 09:36:45 2004
++++ linux-2.6.8.1-ve022stab038-m/net/bridge/netfilter/ebtables.c	Sun Oct 16 06:03:44 2005
+@@ -915,6 +915,7 @@ static int do_replace(void __user *user,
+ 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
+ 		return -EFAULT;
+ 
++/* AUDIT-UN, AUDIT-V?: these BUGPRINT()s are printk()s with no rate limits */
+ 	if (len != sizeof(tmp) + tmp.entries_size) {
+ 		BUGPRINT("Wrong len argument\n");
+ 		return -EINVAL;
+@@ -924,6 +925,8 @@ static int do_replace(void __user *user,
+ 		BUGPRINT("Entries_size never zero\n");
+ 		return -EINVAL;
+ 	}
++/* AUDIT-UL, AUDIT-V?: integer overflow, see comments in ip_tables.c */
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	countersize = COUNTER_OFFSET(tmp.nentries) * NR_CPUS;
+ 	newinfo = (struct ebt_table_info *)
+ 	   vmalloc(sizeof(struct ebt_table_info) + countersize);
+@@ -933,6 +936,7 @@ static int do_replace(void __user *user,
+ 	if (countersize)
+ 		memset(newinfo->counters, 0, countersize);
+ 
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	newinfo->entries = (char *)vmalloc(tmp.entries_size);
+ 	if (!newinfo->entries) {
+ 		ret = -ENOMEM;
+@@ -948,6 +952,8 @@ static int do_replace(void __user *user,
+ 	/* the user wants counters back
+ 	   the check on the size is done later, when we have the lock */
+ 	if (tmp.num_counters) {
++/* AUDIT-U?, AUDIT-V?: integer overflow, see comments in ip_tables.c */
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 		counterstmp = (struct ebt_counter *)
+ 		   vmalloc(tmp.num_counters * sizeof(struct ebt_counter));
+ 		if (!counterstmp) {
+@@ -975,6 +981,7 @@ static int do_replace(void __user *user,
+ 	if (t->check && (ret = t->check(newinfo, tmp.valid_hooks)))
+ 		goto free_unlock;
+ 
++/* This check might make the integer overflow unexploitable */
+ 	if (tmp.num_counters && tmp.num_counters != t->private->nentries) {
+ 		BUGPRINT("Wrong nr. of counters requested\n");
+ 		ret = -EINVAL;
+@@ -1227,11 +1234,14 @@ static int update_counters(void __user *
+ 	if (copy_from_user(&hlp, user, sizeof(hlp)))
+ 		return -EFAULT;
+ 
++/* AUDIT-UN, AUDIT-VN: integer overflow, see comments in ip_tables.c */
+ 	if (len != sizeof(hlp) + hlp.num_counters * sizeof(struct ebt_counter))
+ 		return -EINVAL;
+ 	if (hlp.num_counters == 0)
+ 		return -EINVAL;
+ 
++/* AUDIT-UN, AUDIT-V?: integer overflow, see comments in ip_tables.c */
++/* AUDIT-V?: unlimited vmalloc() */
+ 	if ( !(tmp = (struct ebt_counter *)
+ 	   vmalloc(hlp.num_counters * sizeof(struct ebt_counter))) ){
+ 		MEMPRINT("Update_counters && nomemory\n");
+@@ -1242,6 +1252,7 @@ static int update_counters(void __user *
+ 	if (!t)
+ 		goto free_tmp;
+ 
++/* This check might make the integer overflow unexploitable */
+ 	if (hlp.num_counters != t->private->nentries) {
+ 		BUGPRINT("Wrong nr of counters\n");
+ 		ret = -EINVAL;
+diff -uprN linux-2.6.8.1-ve022stab038/net/core/sock.c linux-2.6.8.1-ve022stab038-m/net/core/sock.c
+--- linux-2.6.8.1-ve022stab038/net/core/sock.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/net/core/sock.c	Thu Oct 20 04:38:16 2005
+@@ -371,6 +371,8 @@ int sock_setsockopt(struct socket *sock,
+ 			if (!valbool) {
+ 				sk->sk_bound_dev_if = 0;
+ 			} else {
++/* The check is signed, but that's OK due to optlen having been checked for
++ * possibly being negative right in sys_setsockopt(). */
+ 				if (optlen > IFNAMSIZ) 
+ 					optlen = IFNAMSIZ; 
+ 				if (copy_from_user(devname, optval, optlen)) {
+@@ -384,6 +386,13 @@ int sock_setsockopt(struct socket *sock,
+ 				if (devname[0] == '\0') {
+ 					sk->sk_bound_dev_if = 0;
+ 				} else {
++/* AUDIT-UN, AUDIT-VL: devname comes from userspace (is under VPS root control)
++ * and it might not be NUL-terminated.  dev_get_by_name() uses strncmp() on it
++ * with IFNAMSIZ as the max length (good), however the actual number of bytes
++ * initialized in devname[] may be less than that (if optlen is less),
++ * resulting in the strncmp() checking uninitialized kernel stack space.
++ * Potential data leaks, one bit per call? */
++/* dev_get_by_name() is VPS-aware - good */
+ 					struct net_device *dev = dev_get_by_name(devname);
+ 					if (!dev) {
+ 						ret = -ENODEV;
+diff -uprN linux-2.6.8.1-ve022stab038/net/ipv4/netfilter/arp_tables.c linux-2.6.8.1-ve022stab038-m/net/ipv4/netfilter/arp_tables.c
+--- linux-2.6.8.1-ve022stab038/net/ipv4/netfilter/arp_tables.c	Sat Aug 14 09:38:11 2004
++++ linux-2.6.8.1-ve022stab038-m/net/ipv4/netfilter/arp_tables.c	Sun Oct 16 06:02:16 2005
+@@ -789,6 +789,7 @@ static int copy_entries_to_user(unsigned
+ 	 * about).
+ 	 */
+ 	countersize = sizeof(struct arpt_counters) * table->private->number;
++/* AUDIT-V?: uncounted vmalloc() (it's freed soon, though) */
+ 	counters = vmalloc(countersize);
+ 
+ 	if (counters == NULL)
+@@ -882,6 +883,8 @@ static int do_replace(void __user *user,
+ 	if ((SMP_ALIGN(tmp.size) >> PAGE_SHIFT) + 2 > num_physpages)
+ 		return -ENOMEM;
+ 
++/* AUDIT-UL, AUDIT-V?: integer overflow, see comments in ip_tables.c */
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	newinfo = vmalloc(sizeof(struct arpt_table_info)
+ 			  + SMP_ALIGN(tmp.size) * NR_CPUS);
+ 	if (!newinfo)
+@@ -893,6 +896,8 @@ static int do_replace(void __user *user,
+ 		goto free_newinfo;
+ 	}
+ 
++/* AUDIT-UL, AUDIT-V?: integer overflow, see comments in ip_tables.c */
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	counters = vmalloc(tmp.num_counters * sizeof(struct arpt_counters));
+ 	if (!counters) {
+ 		ret = -ENOMEM;
+@@ -989,9 +994,11 @@ static int do_add_counters(void __user *
+ 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
+ 		return -EFAULT;
+ 
++/* AUDIT-UN, AUDIT-V?: integer overflow, see comments in ip_tables.c */
+ 	if (len != sizeof(tmp) + tmp.num_counters*sizeof(struct arpt_counters))
+ 		return -EINVAL;
+ 
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	paddc = vmalloc(len);
+ 	if (!paddc)
+ 		return -ENOMEM;
+@@ -1006,6 +1013,7 @@ static int do_add_counters(void __user *
+ 		goto free;
+ 
+ 	write_lock_bh(&t->lock);
++/* AUDIT-UN, AUDIT-V?: race condition, see comments in ip_tables.c */
+ 	if (t->private->number != paddc->num_counters) {
+ 		ret = -EINVAL;
+ 		goto unlock_up_free;
+diff -uprN linux-2.6.8.1-ve022stab038/net/ipv4/netfilter/ip_tables.c linux-2.6.8.1-ve022stab038-m/net/ipv4/netfilter/ip_tables.c
+--- linux-2.6.8.1-ve022stab038/net/ipv4/netfilter/ip_tables.c	Fri Oct  7 06:16:50 2005
++++ linux-2.6.8.1-ve022stab038-m/net/ipv4/netfilter/ip_tables.c	Mon Oct 17 19:20:09 2005
+@@ -1212,6 +1212,16 @@ do_replace(void __user *user, unsigned i
+ 	if ((SMP_ALIGN(tmp.size) >> PAGE_SHIFT) + 2 > num_physpages)
+ 		return -ENOMEM;
+ 
++/* AUDIT-UL: Could overflow on addition within SMP_ALIGN() and/or on
++ * multiplication by NR_CPUS, resulting in a buffer overflow on the
++ * copy_from_user().  In practice, the overflow on addition is triggerable
++ * on all systems, whereas the multiplication one might require much
++ * physical memory to be present due to the check above.  Either is
++ * sufficient to overwrite arbitrary amounts of kernel memory. */
++/* AUDIT-VHF: On OVZ, the above becomes a security vulnerability triggerable
++ * by VPS root.  Additionally, the allocation size is almost unlimited
++ * (even with no integer overflow involved).
++ * FIXED in OVZ by pre-checking for possible integer overflow. */
+ 	newinfo = ipt_table_info_alloc(sizeof(struct ipt_table_info)
+ 			  + SMP_ALIGN(tmp.size) * NR_CPUS);
+ 	if (!newinfo)
+@@ -1222,6 +1232,10 @@ do_replace(void __user *user, unsigned i
+ 		goto free_newinfo;
+ 	}
+ 
++/* AUDIT-UL: Could overflow on multiplication; tmp.num_counters comes from
++ * userspace. */
++/* AUDIT-VHF: The above becomes a security issue when VPS root is untrusted.
++ * FIXED in OVZ by pre-checking for possible integer overflow. */
+ 	counters = ub_vmalloc_best(tmp.num_counters *
+ 					sizeof(struct ipt_counters));
+ 	if (!counters) {
+@@ -1329,6 +1343,7 @@ do_add_counters(void __user *user, unsig
+ 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
+ 		return -EFAULT;
+ 
++/* AUDIT-UN: integer overflow. */
+ 	if (len != sizeof(tmp) + tmp.num_counters*sizeof(struct ipt_counters))
+ 		return -EINVAL;
+ 
+@@ -1336,6 +1351,9 @@ do_add_counters(void __user *user, unsig
+ 	if (!paddc)
+ 		return -ENOMEM;
+ 
++/* AUDIT-UN: race condition: the beginning of paddc is supposed
++ * to be the same as tmp which was sanity-checked above, but it might not
++ * be the same in reality. */
+ 	if (copy_from_user(paddc, user, len) != 0) {
+ 		ret = -EFAULT;
+ 		goto free;
+@@ -1346,6 +1364,14 @@ do_add_counters(void __user *user, unsig
+ 		goto free;
+ 
+ 	write_lock_bh(&t->lock);
++/* AUDIT-UN, AUDIT-VMF: in case the integer overflow and/or the race condition
++ * above are triggered, paddc->num_counters might not match the allocation
++ * size for paddc.  If the check below nevertheless passes (this
++ * requires the race condition to be triggered), IPT_ENTRY_ITERATE() would
++ * read kernel memory beyond the allocation size, potentially leaking
++ * sensitive data (e.g., passwords from host system or from another VPS) via
++ * counter increments.
++ * FIXED in OVZ -044 by using tmp.num_counters here */
+ 	if (t->private->number != paddc->num_counters) {
+ 		ret = -EINVAL;
+ 		goto unlock_up_free;
+@@ -1631,6 +1657,12 @@ int ipt_register_table(struct ipt_table 
+ 	struct ipt_table_info *newinfo;
+ 
+ 	ret = -ENOMEM;
++/* AUDIT-UN: is table->table->size trusted? - YES.  Who calls us?
++ * Callers: iptable_filter.c, ip_nat_rule.c, iptable_mangle.c, iptable_raw.c;
++ * in all cases, "size" comes from a pre-initialized struct, which is
++ * hopefully not overwritten.  However, since ipt_register_table() is
++ * exported for use by modules, theoretically other callers may be added.
++ * A sanity check on "size" wouldn't hurt. */
+ 	newinfo = ipt_table_info_alloc(sizeof(struct ipt_table_info)
+ 			  + SMP_ALIGN(table->table->size) * NR_CPUS);
+ 	if (!newinfo)
+diff -uprN linux-2.6.8.1-ve022stab038/net/ipv6/netfilter/ip6_tables.c linux-2.6.8.1-ve022stab038-m/net/ipv6/netfilter/ip6_tables.c
+--- linux-2.6.8.1-ve022stab038/net/ipv6/netfilter/ip6_tables.c	Sat Aug 14 09:37:40 2004
++++ linux-2.6.8.1-ve022stab038-m/net/ipv6/netfilter/ip6_tables.c	Sun Oct 16 06:07:34 2005
+@@ -1037,6 +1037,7 @@ copy_entries_to_user(unsigned int total_
+ 	   (other than comefrom, which userspace doesn't care
+ 	   about). */
+ 	countersize = sizeof(struct ip6t_counters) * table->private->number;
++/* AUDIT-V?: uncounted vmalloc() (it's freed soon, though) */
+ 	counters = vmalloc(countersize);
+ 
+ 	if (counters == NULL)
+@@ -1146,6 +1147,8 @@ do_replace(void __user *user, unsigned i
+ 	if ((SMP_ALIGN(tmp.size) >> PAGE_SHIFT) + 2 > num_physpages)
+ 		return -ENOMEM;
+ 
++/* AUDIT-UL, AUDIT-V?: integer overflow, see comments in ip_tables.c */
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	newinfo = vmalloc(sizeof(struct ip6t_table_info)
+ 			  + SMP_ALIGN(tmp.size) * NR_CPUS);
+ 	if (!newinfo)
+@@ -1157,6 +1160,8 @@ do_replace(void __user *user, unsigned i
+ 		goto free_newinfo;
+ 	}
+ 
++/* AUDIT-UL, AUDIT-V?: integer overflow, see comments in ip_tables.c */
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	counters = vmalloc(tmp.num_counters * sizeof(struct ip6t_counters));
+ 	if (!counters) {
+ 		ret = -ENOMEM;
+@@ -1262,9 +1267,11 @@ do_add_counters(void __user *user, unsig
+ 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
+ 		return -EFAULT;
+ 
++/* AUDIT-UN, AUDIT-V?: integer overflow, see comments in ip_tables.c */
+ 	if (len != sizeof(tmp) + tmp.num_counters*sizeof(struct ip6t_counters))
+ 		return -EINVAL;
+ 
++/* AUDIT-V?: uncounted/unlimited vmalloc() */
+ 	paddc = vmalloc(len);
+ 	if (!paddc)
+ 		return -ENOMEM;
+@@ -1279,6 +1286,7 @@ do_add_counters(void __user *user, unsig
+ 		goto free;
+ 
+ 	write_lock_bh(&t->lock);
++/* AUDIT-UN, AUDIT-V?: race condition, see comments in ip_tables.c */
+ 	if (t->private->number != paddc->num_counters) {
+ 		ret = -EINVAL;
+ 		goto unlock_up_free;

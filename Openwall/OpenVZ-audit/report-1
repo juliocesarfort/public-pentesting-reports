@@ -1,0 +1,418 @@
+	OpenVZ security audit, phase 1, Sep 15 through Nov 30, 2005.
+
+
+	High-level subsystems/features covered in the audit.
+
+The following components were included in the audit:
+
+1. The kernel:
+
+OpenVZ kernel patch (initially patch-022stab034-core, later
+patch-022stab038-core, patch-022stab045-combined, and finally
+patch-022stab050-combined).  Most of the analysis was performed on
+patch-022stab038-core.
+
+The entire OpenVZ kernel (that is, Linux 2.6.8 with the OpenVZ patch
+applied).  Only a small portion of the kernel sources was actually
+reviewed and/or stress-tested.  This includes code paths specifically
+affected by changes made in OpenVZ as well as kernel subsystems and
+their properties that are especially important for correct analysis of
+OpenVZ-introduced code and changes.
+
+Priority was given to features enabled with the default OpenVZ kernel
+configurations.
+
+The kernel was _not_ checked for any non-OVZ-specific vulnerabilities
+that are fixed upstream.
+
+2. vzctl (initially vzctl-2.7.0-21, later vzctl-2.7.0-24).
+
+3. vzpkg (vzpkg-2.7.0-17) and vzrpm (vzrpm44-4.4.1-22.5).
+
+4. vzquota (vzquota-2.7.0-7).
+
+Only partial reviews of vz* utilities were performed, please see below.
+
+
+	Portions of code and vulnerability classes that have been covered.
+
+The following portions of code have been reviewed and/or tested and the
+vulnerability classes checked for, arranged by OpenVZ component:
+
+1. The kernel:
+
+1.1. The entire OpenVZ kernel source tree has been checked for:
+
+1.1.1. Actions allowed specifically with any one of a process' UIDs
+(uid, euid, fsuid) being zero.  This is likely Linux pre-2.2 heritage
+which is not valid under the capability model and would potentially
+result in very practical vulnerabilities with the OpenVZ security model.
+
+Automated checking was used initially ("grep" with many regular
+expressions aimed to catch most common ways to check UIDs against zero),
+followed by manual review of pieces of code containing the lines with
+matches.
+
+A handful of problematic UID checks like this was actually identified
+(added to "checklist" and commented on in "remarks-038-10").  These are
+located in facilities that are unlikely to be compiled into OpenVZ
+kernels or are otherwise not particularly relevant to OpenVZ.  They need
+to be reported upstream.
+
+The LSMs located under security/, except for security/commoncap.c, have
+been specifically excluded from the audit.  Some are known to ruin the
+OpenVZ security model.  The recommendation is to document this.
+
+1.1.2. Actions allowed specifically with capabilities included in
+vzctl's CAPDEFAULTMASK.
+
+A number of problems were discovered, including upstream bugs with and
+without OVZ specifics, actions which shouldn't have been allowed for
+VPSes or which need virtualization, and possibilities for uncontrolled
+consumption of kernel resources.  All of these have been appropriately
+marked in the "checklist" and some also in "remarks-038-10".
+
+CAP_NET_RAW involved a significant amount of testing for other VPSes'
+network traffic sniffing with different socket types and for raw packet
+injections with spoofed source addresses.  It passed the tests.
+
+Only a small number of instances of capability checks haven't been
+reviewed for real (but have been added to the "checklist").  These have
+been determined to not be particularly relevant and/or to be relatively
+hard (time-consuming) to review and validate.
+
+1.2. Code paths related to dropping of CAP_SETVEID on VPS creation and
+entry.  Passed review and testing.
+
+1.3. Definition and uses of cap_set_full().  Uses of CAP_FULL_SET and
+CAP_INIT_EFF_SET.  Passed review.
+
+1.4. Potential missing restrictions for VPS root vs. host root (lack of
+virtualization) and unsafe code in:
+
+1.4.1. Syscalls available to VPS root but not to users, as identified by
+"sysfuzzer" (23 syscalls).  One OVZ vulnerability and one
+non-OVZ-specific upstream problem were identified.
+
+1.4.2. Syscalls which were explicitly excluded from "sysfuzzer" (reboot,
+vhangup).  Passed review.
+
+1.4.3. Syscalls which might also be available to VPS root but not to
+users, but which could have been missed by "sysfuzzer".  The entire list
+of syscalls supported on i386 was reviewed manually and potentially
+relevant ones (53 syscalls) were selected for review and/or testing.  A
+couple of problems were identified.
+
+The problems identified with syscall reviews matched those identified
+with the review on capabilities described above.
+
+Complete lists of syscalls checked (reviewed and/or tested) along with
+the status for each are included in the "checklist".
+
+1.4.4. ioctls available to VPS root but not to users.  All devices major
+and minor numbers (for majors up to 1023) for both character and block
+devices were brute-forced and open()able ones listed.  No unexpected or
+unintended ones were identified.  A bug allowing for VPS root initiated
+node crashes was triggered (and has been fixed before revision 050).
+Non-OVZ-specific issues with /dev/*random were raised on the mailing
+list.
+
+1.4.5. sysctls.  Passed testing for proper virtualization.
+
+1.5. All of the OVZ-introduced code has been checked for certain generic
+vulnerability classes, as described below.  However, it has not been
+manually reviewed in its entirety.
+
+1.5.1. Uses of __{get,put}_user() and __copy_{to,from}_user() where
+"non-underscored" versions of these macros/functions are required.  No
+erroneous uses found.
+
+1.5.2. All identified syscall wrappers were checked for possible race
+conditions which could result from copying of arguments passed by
+reference from the user-space twice.  No such race conditions were
+found.  The list of functions identified and checked is available in the
+"checklist".
+
+However, other race conditions were identified in ip_tables.c:
+do_add_counters() (as well as in other instances of this code) and in
+do_env_enter().
+
+1.5.3. All *[kv]malloc() calls in patch context have been checked for
+possible integer overflows when calculating the allocation sizes.  Such
+integer overflows were actually discovered in ip_tables.c (and in other
+instances of this code).
+
+1.5.4. All *[kv]malloc() calls in patch context have been checked for
+allocations of user-controlled amounts of memory with no sanity limits.
+The only ones identified are beancounted.
+
+1.6. The classical chroot break (see "breakout.c") was attempted.
+Unexpectedly, it resulted in an Oops.  The bug has since been fixed and
+"breakout.c" fails as it should now.
+
+1.7. Both code reviews and testing was done on possibilities to access
+another VE's processes by PID, using PTRACE_ATTACH, kill(2), and
+setpriority(2).  The results are consistent: such attempts fail from
+within a VPS, whereas non-root users on the host system are permitted to
+access in-VPS processes which happen to run under the same UID.
+
+1.8. It was tested whether host filesystem mount flags (noexec, nosuid,
+nodev) have any effect on VPSes using simfs.  The answer is "no", they
+don't.  This may be documented to avoid any confusion and to "legalize"
+the use of "noexec" for some limited protection of the host system from
+accidental execution of files from VPSes.
+
+1.9. An attempt was made to identify resources that are not properly
+beancounted and not limited for individual VPSes.  tmpfs allocations
+passed the test.  Loopback mounts also passed both code review and
+testing for the simple reason that they're not available in VPSes.
+However, route tables, network interfaces (aliases), bind mounts, and
+tmpfs mounts have been determined to not be properly beancounted or
+limited.  Additionally, the queues_count variable in ipc/mqueue.c is not
+virtualized, potentially allowing to DoS the functionality for non-root
+users in all VPSes and on the host system.
+
+1.10. Some other OVZ-introduced code and some other changes applied with
+the OVZ patch have been reviewed manually.  Some of these are listed in
+the "checklist".
+
+2. vzctl:
+
+2.1. The VPS entry code paths were reviewed, leading to the discovery of
+a race condition in the kernel's do_env_enter().
+
+2.2. Testing and review of "strace" logs revealed that only the first 16
+fd's were being closed on VPS entry.  This needs to be corrected.  Also,
+the fd's are being closed _after_ the ioctl call, which is not great,
+although the risk is now mitigated by having the VPS-entering process
+protected from ptrace(2).
+
+2.3. The permissions on files and directories created by vzctl were
+checked.  It was determined that vzctl.spec doesn't explicitly set
+permissions on /dev/vzctl, letting them depend on umask.  This needs to
+be corrected.  Additionally, it is preferable for default permissions on
+/vz/private to be forced to 700 (which is not the case currently, unless
+running with umask 077 which is uncommon).  The rationale for this was
+discussed on the mailing list (potential fd passing).
+
+2.4. The default capabilities list has been reviewed and it will need to
+be revised as a result of the kernel reviews.
+
+2.5. The vzctl(8) manual page has been reviewed for its description of
+the --capability option.  It has been determined that a warning should
+be added stating that enabling non-default capabilities may completely
+break the OpenVZ security model.
+
+3. vzpkg and vzrpm:
+
+3.1. Initially, vzpkg was determined to be using host's rpm and yum on
+VPSes.  This was obviously insecure.
+
+3.2. vzrpm would properly switch to VE context when executing scripts,
+however a brief review of source code of RPM revealed many other vectors
+for attack by a malicious VPS.
+
+Because of these flaws, no further reviews on these utilities were done.
+
+4. vzquota:
+
+4.1. quotacheck.c was reviewed in its entirety.  It was determined to be
+safe to use on stopped VPSes, but unsafe on running ones (three distinct
+race conditions were identified).
+
+4.2. It was checked that quota_io.c: open_quota_file() properly sets
+safe permissions on the file and there are no other O_CREATs or creat()
+calls in vzquota.
+
+The rest of vzquota was determined to not be thoroughly reviewed due to
+serious security issues being unlikely there.
+
+
+	OpenVZ-specific security issues found.
+
+These are mostly in "checklist" order:
+
+1. The kernel:
+
+1.1. Issues "enabled" with capabilities granted to VPS root:
+
+1.1.1. CAP_NET_RAW enables SO_BINDTODEVICE.  The code for SO_BINDTODEVICE
+does not process non-NUL-terminated devname[] strings correctly,
+potentially allowing for leaks of information off the kernel stack
+(leftovers from previous activity), at a rate of 1 bit per 128 syscalls
+or better.  The code needs to be corrected.
+
+1.1.2. CAP_SYS_PTRACE: arch/ia64/kernel/perfmon.c and
+arch/ia64/kernel/ptrace.c were not virtualized.  This has since been
+fixed.
+
+1.1.3. CAP_SYS_PACCT: is not virtualized at all, should be dropped from
+the default capability set.
+
+1.1.4. CAP_SYS_NICE: enables SCHED_FIFO and SCHED_RR.  It has since been
+determined to disallow those for VPSes.
+
+1.1.5. CAP_SYS_RESOURCE used to allow for setublimit() and ubstat() to be
+invoked from within VPS.  This has since been fixed.
+
+1.1.6. CAP_VE_SYS_ADMIN and CAP_VE_NET_ADMIN enable several things which
+needed to be fixed: the code in ip_tables.c with its security issues
+(already fixed), mount (no limit on number of mounts in a VPS, not yet
+fixed), net/ipv4/devinet.c (no limit on number of interfaces, not yet
+fixed), net/ipv4/fib_frontend.c (no limit on number of routes, not yet
+fixed).
+
+1.2. Oops / node crash bug in alloc_ve_tty_driver().  Already fixed.
+
+1.3. Assorted issues in ip_tables.c (integer overflows when calculating
+allocation sizes, race conditions).  These are already fixed.  Similar
+bugs in other instances of this code are not fixed (but that code is
+currently not used on OVZ).
+
+1.4. Oops / node crash bug triggerable with the classical chroot break.
+Already fixed.
+
+1.5. Host system non-root to VPS attacks with matching UIDs.  Subtle host
+non-root + VPS root => host root attack with fd passing.  The latter may
+be worked around with hardened permissions on /vz/private (700).  None
+of this is currently fixed.
+
+1.6. do_env_enter() race condition with (re)setting capabilities too late.
+Fixed.
+
+1.7. route tables, network interfaces (aliases), and mounts are not
+properly beancounted or limited, allowing for DoS attacks on the host
+node.  route table flood appears to be the most effective, leading to
+the system running out of physical memory within minutes.
+
+1.8. The queues_count variable in ipc/mqueue.c is not virtualized,
+potentially allowing to DoS the functionality for non-root users in all
+VPSes and on the host system.
+
+2. vzctl:
+
+2.1. Only the first 16 fd's are being closed on VPS entry.  This needs
+to be corrected.  Ideally, all but fd 0-2 and the fd needed for the
+ioctl should be closed before the ioctl.
+
+2.2. vzctl.spec doesn't explicitly set permissions on /dev/vzctl,
+letting them depend on umask.  This needs to be corrected.
+Additionally, it is preferable for default permissions on /vz/private to
+be forced to 700.
+
+2.3. The default capabilities list should be revised.  CAP_SYS_PACCT
+should be dropped.  If possible, CAP_SYS_TTY_CONFIG should also be
+dropped.
+
+2.4. A warning should be added to the vzctl(8) manual page stating that
+enabling non-default capabilities may completely break the OpenVZ
+security model.  Maybe vzctl itself should print a warning, too, when
+requested to set known-unsafe capabilities.
+
+3. vzpkg and vzrpm:
+
+3.1. Initially, vzpkg was determined to be using host's rpm and yum on
+VPSes.  This was obviously insecure.
+
+3.2. vzrpm would properly switch to VE context when executing scripts,
+however a brief review of source code of RPM revealed many other vectors
+for attack by a malicious VPS, including via NSS modules, libraries'
+configuration files, malicious/changing Berkeley databases (disobeying
+any locking conventions), and symlink races exploiting the fact that RPM
+would keep its current directory outside of the chroot point.
+
+It has been agreed that vzrpm should be ditched and the packages to
+install/update should be introduced into the VPS instead, to be
+installed with an in-VPS instance of RPM.
+
+4. vzquota's vzdqcheck, "vzquota on ... -p ...", and
+"vzquota init ... -p ..." have been determined to be unsafe to use on
+running VPSes (perhaps they shouldn't be used like that anyway).
+It would be preferable to add a check making them refuse to work like
+that.  The difficulty here appears to be that vzdqcheck and vzquota are
+only supplied directory paths and not veid's.  Maybe that should be
+re-worked, to have all utilities accept veid's and translate them to
+paths using a common library?
+
+Alternatively, maybe the race conditions should be resolved (to the
+extent possible without further changes to the kernel).  The easiest
+initial workaround could be to change the open flags in get_inode_size()
+to (O_RDONLY | O_NOCTTY | O_NONBLOCK | O_NOFOLLOW).  This won't help
+against mknod()s of rewinding tape device files, but not that many
+systems have tape drives.
+
+
+	Portions of code and potential issues yet to be checked for.
+
+Essentially all lines on "checklist" that do not start with a plus (item
+completed) or minus (determined to not be done) may be worked on.  The
+most important of these are, described in plain English:
+
+1. The OVZ-introduced code should be reviewed in its entirety.  As it
+has been described above, so far only portions of the code have been
+thoroughly reviewed, whereas the rest has only been checked for certain
+classes of vulnerabilities, -- and the primary focus was on higher risk
+issues (with risk probability taken into account) with OpenVZ kernel at
+large.  Now that all capability uses, syscalls, etc. have been checked
+(with very few exceptions) would be a good time to proceed with further
+reviews of all of the OVZ-introduced code.
+
+2. We should double-check that OpenVZ contains all relevant upstream
+security fixes applied after Linux 2.6.8.1.  Any missing fixes should be
+back-ported and applied.  Alternatively, OpenVZ should be updated to a
+newer base kernel version (ideally, this should be done regularly).
+
+3. vzctl should be reviewed in its entirety.
+
+4. Once fixes for the issues identified so far are available, they will
+need to be peer-reviewed.  This applies to both kernel and user-space
+code fixes.
+
+5. Once vzpkg implements an alternate approach that is not fundamentally
+flawed, vzpkg will also need to be reviewed in its entirety.
+
+6. Security of the infrastructure around OpenVZ will need to be
+considered.  Is all of the code being distributed signed?  With what
+key?  Is the private key secure?  Where people are supposed to obtain
+the public key and how they verify its authenticity?  Are development
+systems secure?  Are distribution websites, mirrors, etc. secure?  What
+process is there to announce security updates?  And so on.
+
+
+	Recommendations for "hardening" OpenVZ security.
+
+1. Kirill's proposed dentry-based "area checks" should be fully
+implemented, both as a hardening measure against "escaped" VPSes and as
+a policy enforcement and safety measure for tools used off the host
+system.  In particular, it could be used to make host-initiated backups
+and quotachecks safe (or at least safer than they are now).
+
+2. Certain risky/irrelevant functionality that Linux normally provides
+could be disabled for VPSes.  vm86() and vm86old() syscalls would be an
+example.
+
+3. The most reliable way to deal with attacks based on matching UIDs is
+to simply not have those, but rather translate full 32-bit unique
+UIDs/GIDs to VPS-specific ones on kernel interfaces.  This has been
+briefly discussed on the mailing list.  The biggest disadvantage that
+was mentioned is that it would make it harder to migrate VPSes across
+nodes.
+
+It was suggested that matching UIDs/GIDs could continue to be used in
+different VPSes, but they would be different from those the host system
+would use.  In order to ensure cross-VPS security even if an attacker
+would manage to escape from a VPS' chroot jail, permissions on
+/vz/private would need to be set to 700 (with host root as the owner),
+which is being recommended above for other reasons anyway.  Additionally,
+the meaning of certain capabilities (CAP_DAC_OVERRIDE, etc.) would need
+to be "virtualized" when in VE context.  That is, the DAC override would
+apply only to files whose owner UIDs fall within the VPS' range, etc.
+
+Unfortunately, with all these considerations, this does appear to be not
+so trivial to implement.  So this is more of an idea for further
+discussion rather than a final recommendation.
+
+4. It may be possible to replace the temporary exec_env and exec_ub
+switches on IRQs, etc. with a safer concept.  The issue has just been
+raised on the mailing list and not yet discussed, so it is too early to
+position it as a "recommendation".
