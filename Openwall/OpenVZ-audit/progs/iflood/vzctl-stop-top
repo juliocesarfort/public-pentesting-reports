@@ -1,0 +1,16 @@
+top - 19:34:56 up  5:09,  2 users,  load average: 7.00, 6.99, 6.82
+Tasks:  43 total,   9 running,  33 sleeping,   0 stopped,   1 zombie
+CPU0  :  0.0% us,  0.0% sy,  0.0% ni, 100.0% id,  0.0% wa,  0.0% hi,  0.0% si
+CPU1  :  0.0% us, 100.0% sy,  0.0% ni,  0.0% id,  0.0% wa,  0.0% hi,  0.0% si
+Mem:    254740K total,   102848K used,   151892K free,    20388K buffers
+Swap:   977216K total,        0K used,   977216K free,    58832K cached
+
+  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+  189 root      15   0     0    0    0 R 99.9  0.0  59:22.54 vzmond
+    1 root      16   0   572  216  432 R  0.0  0.1   0:00.15 init
+   14 root      15   0     0    0    0 R  0.0  0.0   0:00.01 pdflush
+   11 root      15   0     0    0    0 R  0.0  0.0   0:00.00 kirqd
+   21 root      15   0     0    0    0 R  0.0  0.0   0:00.06 kjournald            327 root      16   0  1872  912 1688 R  0.0  0.4   0:00.02 master
+ 2764 root      16   0  6164 2060 5712 R  0.0  0.8   0:00.20 sshd
+22963 root      15   0  1556  660 1384 R  0.0  0.3   0:00.00 vzctl
+23476 root      16   0  1840  960 1620 R  0.0  0.4   0:00.38 top

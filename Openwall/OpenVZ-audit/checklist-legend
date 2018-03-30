@@ -1,0 +1,20 @@
+	(nothing) item yet to be done
+-	determined to not be done
+?	uncertain whether the item should be done
++	completed (code reviewed, etc.) - status may be available in subitems
++/-	partially completed, the rest is not to be done
++R	completed and Reported to OVZ team
++OK	code reviewed or functionality tested, no vulnerabilities found
++B	Bug(s) found (typically security-relevant)
++BF	Bug(s), already Fixed in current OVZ
++BU	Bug(s) in Upstream code with no OVZ specifics
++BR	Bug(s), already Reported to OVZ team
++BUR	Bug(s) in Upstream code, no OVZ specifics, already Reported to OVZ team
++WB	Would be Bug (if a non-default kernel option is enabled, etc.)
++ND	Need Documentation
++NDR	Need Documentation, already Reported to OVZ team
+
+Additional modifiers:
++..?	uncertain of the (preliminary) conclusion
++.. t	testing rather than code review was used
++..+t	testing was done in addition to code review

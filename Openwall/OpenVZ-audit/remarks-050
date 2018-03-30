@@ -1,0 +1,26 @@
+diff -uprN linux-2.6.8.1-ve022stab050/kernel/printk.c linux-2.6.8.1-ve022stab050-m/kernel/printk.c
+--- linux-2.6.8.1-ve022stab050/kernel/printk.c	Mon Nov 28 16:45:43 2005
++++ linux-2.6.8.1-ve022stab050-m/kernel/printk.c	Wed Nov 30 07:23:54 2005
+@@ -314,6 +314,7 @@ int do_syslog(int type, char __user * bu
+ 	char c;
+ 	int error = 0;
+ 
++/* AUDIT-VN: this returns 0; maybe it should be returning -EACCES instead? */
+ 	if (!ve_is_super(get_exec_env()) &&
+ 			(type == 6 || type == 7 || type == 8))
+ 		goto out;
+diff -uprN linux-2.6.8.1-ve022stab050/kernel/vecalls.c linux-2.6.8.1-ve022stab050-m/kernel/vecalls.c
+--- linux-2.6.8.1-ve022stab050/kernel/vecalls.c	Mon Nov 28 16:45:43 2005
++++ linux-2.6.8.1-ve022stab050-m/kernel/vecalls.c	Wed Nov 30 06:42:41 2005
+@@ -1302,7 +1302,11 @@ static void set_ve_root(struct ve_struct
+ 
+ static void set_ve_caps(struct ve_struct *ve, struct task_struct *tsk)
+ {
++/* AUDIT-VN?: does this comment really apply? -- */
+ 	/* required for real_setdevperms from register_ve_<fs> above */
++/* AUDIT-VN?: this sets CAP_SETVEID in cap_default for a short moment.
++ * It shouldn't be a vulnerability since the VPS is just starting, but
++ * it's not nice anyway. */
+ 	memcpy(&ve->cap_default, &tsk->cap_effective, sizeof(kernel_cap_t));
+ 	cap_lower(ve->cap_default, CAP_SETVEID);
+ }

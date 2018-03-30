@@ -1,0 +1,397 @@
+--- kernel:
++	actions available with (any)uid == 0 vs. non-root
++		LSMs (everything under security/)
++OK			security/commoncap.c
++OK				cap_task_reparent_to_init() - for kthreads only
++NDR			security/dummy.c - would ruin OVZ security model
+-			other modules/models
++OK		fs/fcntl.c - commented
++BUR		drivers/char/agp/frontend.c
++OK		drivers/acpi/asus_acpi.c
++OK		kernel/sysctl.c - safe due to mode &= ~0222 for !ve_accessible
++BUR		fs/umsdos/ioctl.c
++BUR		drivers/net/wan/sbni.c
++BUR		drivers/s390/crypto/z90main.c
++BUR?		drivers/net/ethertap.c
++BUR		fs/open.c
+	capabilities
+		actions available with CAPDEFAULTMASK vs. non-root
++OK			CAP_CHOWN
++OK			CAP_DAC_OVERRIDE (setublimit, ubstat are dealt with)
++OK			CAP_DAC_READ_SEARCH (ditto)
++OK			CAP_FOWNER
++OK			CAP_FSETID
++			CAP_KILL
++WBR				drivers/char/vt_ioctl.c: KDSIGACCEPT
++R				enhance check_kill_permission() with VPS check?
++OK			CAP_SETGID
++OK				sys_setgroups() (safe for invalid gidsetsize)
++OK				sys_setgroups16() (ditto)
++?				groups_alloc() not beancounted (but small)
++OK				(non-x86 32/64-bit compat wrappers are similar)
++OK				scm_check_creds()
++OK			CAP_SETUID
++BUR				setreuid, setuid, setresuid may fail with EAGAIN
++OK				alloc_uid(), find_user() - are they VPS-aware?
++OK				are unused user_struct's freed? - YES
++OK				sys_setluid() - better check ve_is_super() first
++OK				scm_check_creds() (same as CAP_SETGID)
++OK			CAP_LINUX_IMMUTABLE
++OK			CAP_NET_BIND_SERVICE - may be unsafe for non-IP protos
++OK			CAP_NET_BROADCAST - unused, better drop it
++B			CAP_NET_RAW
++OK t				sniffing - only traffic of the same VPS
++OK t					PF_PACKET, SOCK_RAW, SOCK_PACKET
+				raw packet injections:
+					non-IP should be disallowed
+					spoofed source should be disallowed
++OK t						PF_INET, SOCK_RAW, IPPROTO_ICMP
++OK t						PF_INET, SOCK_RAW, IPPROTO_RAW
+						PF_PACKET
+						SOCK_PACKET
++OK t						up on venet0:1, bind, connect
++BR				SO_BINDTODEVICE - non-NUL-terminated devname[]
+				SOCK_RAW
+				ip_options_compile() - allow arbitrary IP opts?
+				net/packet/af_packet.c
+-				net/bluetooth/hci_sock.c
+-				net/bluetooth/l2cap.c
+-				net/ipv6/datagram.c
+-				net/ipv6/af_inet6.c
+-				net/wanrouter/af_wanpipe.c
+			CAP_IPC_LOCK - intentional, supposed to be beancounted?
+				hugetlbfs
+				shmctl() SHM_LOCK, SHM_UNLOCK
++				mlock, munlock, mlockall, munlockall syscalls
++BUR				sys_mlock() int overflow, RLIMIT_MEMLOCK bypass
++BUR				do_mmap_pgoff() ditto
++OK					if VM_LOCKED set, beancounted as such
++OK			CAP_IPC_OWNER
++OK			CAP_SYS_CHROOT
++BF			CAP_SYS_PTRACE - problem on ia64
++BF				arch/ia64/kernel/perfmon.c - need VPS check?
++OK				fs/proc/base.c - due to find_task_by_pid_ve()
++BF				kernel/ptrace.c - ia64 not patched:
++BF					arch/ia64/kernel/ptrace.c
++OK				security/commoncap.c - not a complete check
++BR			CAP_SYS_PACCT
++BR				no virtualization (but not enabled by default)
++OK				kernel/acct.c - no other OVZ-specific dangers
++OK			CAP_SYS_BOOT - proper virt in place, no other uses
++OK			CAP_SYS_NICE
++OK				set_one_prio() - needs same-VPS task anyway
++OK				sys_setpriority()
++OK					do_each_task_pid_ve(...PIDTYPE_PGID...)
++OK					while_each_task_pid_ve() - nop, but OK
++OK					do_each_thread_ve()
++OK				sys_nice()
++				setscheduler()
++OK					find_process_by_pid()
++R t					SCHED_FIFO, SCHED_RR (DoS "vzctl stop")
++OK				sys_sched_setaffinity()
++BR			CAP_SYS_RESOURCE
++OK				arch/sparc64/solaris/fs.c
++WB				drivers/char/hpet.c: HPET_IRQFREQ - non-default
++WB				drivers/char/rtc.c
++WB					RTC_PIE_ON - changes hw config
++WB					RTC_IRQP_SET - ditto
++OK t						chrdev_open() checks, see below
++WB				drivers/char/vt_ioctl.c: KDSKBENT - would be DoS
++WB				drivers/char/vt.c: vc_allocate() - ditto?
++OK					get_device_perms_ve() in chrdev_open()
++OK t						tested - open() given EACCES
++OK				fs/*/balloc.c
++R				fs/dquot.c: ignore_hardlimit() - irrelevant?
++OK				fs/vzdq_mgmt.c
++OK					do_vzquotactl() - CAP_SYS_ADMIN
++OK					vzquota_read_proc() - ditto
++OK				fs/vzdq_ugid.c: do_vzquotaugidctl() - ditto
++OK				fs/vzdq_ops.c: ignore_hardlimit()
++OK				ipc/msg.c: IPC_SET (beancounted, but nasty)
++BR				ipc/mqueue.c
++BR					queues_count not virtualized
++WB					mqueue_create() - would be int overflow
++OK					mq_attr_ok() - semi-OK (HARD_MSGMAX)
++OK				kernel/fork.c
++OK				kernel/sys.c: sys_setrlimit()
++BF				kernel/ub/ub_sys.c: sys_setublimit()
++R			CAP_SYS_TTY_CONFIG - why?
++WB				drivers/char/vt_ioctl.c - rely on chrdev_open()
++OK				fs/open.c: vhangup() - is this for getty? why?
+-				drivers/s390/char/keyboard.c
+-				security/selinux/hooks.c
++OK			CAP_MKNOD
+-				fs/xfs/linux-2.6/xfs_ioctl.c
++OK				fs/namei.c
++OK			CAP_LEASE
+			CAP_VE_SYS_ADMIN
++				fs/namespace.c
++OK					sys_umount(), do_umount()
++B?R					mount_is_safe(), do_loopback()
++OK					do_remount(), do_remount_sb()
++R					do_move_mount() - disallow?
++OK					do_new_mount()
++OK						fs/super.c: do_kern_mount()
+				fs/quota.c: check_quotactl_valid()
++OK				ipc/msg.c: sys_msgctl()
++OK				ipc/sem.c: semctl_down()
++OK				ipc/shm.c: sys_shmctl(): IPC_RMID, IPC_SET
++OK				kernel/sys.c
++OK					sys_sethostname()
++OK					sys_setdomainname()
++OK				net/core/scm.c: scm_check_creds()
++OK				security/commoncap.c: cap_syslog(); do_syslog()
+			CAP_VE_NET_ADMIN
++OK				drivers/net/tun.c (overrides uid check only)
+				include/linux/security.h: cap_netlink_recv()
+					net/core/rtnetlink.c
+					net/ipv4/netfilter/ip_queue.c
+					net/ipv6/netfilter/ip6_queue.c
+					net/xfrm/xfrm_user.c
+				net/core/dev.c: dev_ioctl(): SIOCSIFMTU
++OK				net/ipv4/netfilter/ip_tables.c
++BF					do_ipt_set_ctl() (already dealt with)
++OK					do_ipt_get_ctl()
++OK						IPT_SO_GET_INFO
++OK						IPT_SO_GET_ENTRIES
++BR				net/ipv4/devinet.c
++BR+t					all kmalloc()s are non-beancounted
++BR+t					no limit on number of interfaces
+				net/ipv4/fib_frontend.c:
++BR+t					SIOCADDRT - no limit on number of routes
++OK t					SIOCDELRT - can't delete others' routes
+					fib_semantics.c: fib_convert_rtentry()
+				net/netlink/af_netlink.c: netlink_capable()
+					netlink_bind()
+					netlink_connect()
+					netlink_sendmsg()
++OK+t		dropping of CAP_SETVEID
++OK+t			VE_CREATE
++OK+t			VE_ENTER
++OK		cap_set_full() (as used on exec)
++OK		uses of CAP_FULL_SET, CAP_INIT_EFF_SET
+	missing restrictions for VPS root vs. host root and unsafe code in:
++		syscalls available to VPS root but not to users, from sysfuzzer:
++BUR			setuid (sys_setuid16) - sys_setuid(low2highuid(uid))
++OK			setgid (sys_setgid16) - sys_setgid(low2highgid(gid))
++BUR			setreuid - same as setuid()
++OK			setregid
++OK			sethostname - CAP_VE_SYS_ADMIN, virtualized
++OK?			setgroups (sys_setgroups16) - groups not beancounted
++OK		95	fchown (sys_fchown16) - wrapper around sys_fchown()
++OK			syslog - CAP_VE_SYS_ADMIN in cap_syslog(), virtualized
++OK			setdomainname - CAP_VE_SYS_ADMIN, virtualized
++BUR			mlock - CAP_IPC_LOCK, beancounted; RLIMIT_MEMLOCK int-o
++OK			munlockall - CAP_IPC_LOCK
++OK			setresuid (sys_setresuid16) - same as setuid()
++OK			setresgid (sys_setresgid16)
++BUR			setreuid32 - same as setuid32()
++OK			setregid32
++OK?			setgroups32 - groups array not beancounted
++OK		207	fchown32 - not root-specific (but root has more privs)
++BUR			setresuid32  - same as setuid32()
++OK			setresgid32
++BUR			setuid32 - no OVZ issues; up: fails on transient errors
++OK			setgid32
++BF			setublimit, ubstat
++OK		not sysfuzzed:
++OK			reboot
++OK			vhangup (do_tty_hangup() is used from elsewhere anyway)
++				drivers/char/tty_io.c: do_tty_hangup()
+		potentially missed by sysfuzzer:
++OK		14	mknod - CAP_MKNOD for devices (will create any...)
++OK		16	lchown (sys_lchown16) - wrapper around sys_lchown()
++		21	mount - CAP_VE_SYS_ADMIN, see above
++OK		22	umount (sys_oldumount) - wrapper around sys_umount()
++OK		25	stime - CAP_SYS_TIME
++BF		51	acct - CAP_SYS_PACCT (should drop it), not virtualized
++OK		52	umount2 (sys_umount) - CAP_VE_SYS_ADMIN, reviewed above
++OK		53	lock - non-existent
++OK		56	mpx - non-existent
++OK		61	chroot - CAP_SYS_CHROOT, classical break fixed elsewhere
++OK		75	setrlimit - CAP_SYS_RESOURCE to raise, no OVZ specifics
++OK		79	settimeofday - CAP_SYS_TIME
++OK		87	swapon - CAP_SYS_ADMIN
++OK		97	setpriority - not root-specific, CAP_SYS_NICE
++OK		98	profil - non-existent
++OK		101	ioperm (i386, x86_64) - CAP_SYS_RAWIO to turn_on
++OK		110	iopl (i386, x86_64) - CAP_SYS_RAWIO to gain more privs
++OK		115	swapoff - CAP_SYS_ADMIN (plus need access to device)
+		117	ipc (sys_shm*)
++OK		127	create_module - non-existent
++OK		128	init_module - CAP_SYS_MODULE
++OK		129	delete_module - CAP_SYS_MODULE
++OK?		131	quotactl - no code flaws, OVZ relevance unclear
++OK		135	sysfs - not root-specific, virtualized
++OK		138	setfsuid - sys_setfsuid(low2highuid(uid));
++OK		139	setfsgid - sys_setfsgid(low2highgid(gid));
++OK t		149	sysctl - not root-specific, virtualized
++OK		151	munlock - not root-specific
++OK		152	mlockall - CAP_IPC_LOCK, beancounted in mlock_fixup()
++OK		154	sched_setparam - not root-specific, CAP_SYS_NICE
++BF		156	sched_setscheduler - ditto + could set policy
++OK		185	capset - not root-specific, CAP_SETPCAP for privs
++OK		198	lchown32 - not root-specific (but root has more privs)
++OK		212	chown32 - ditto
++OK		215	setfsuid32 - never returns error, so missed by fuzzer
++OK		216	setfsgid32 - ditto
++OK			pivot_root - CAP_SYS_ADMIN
++OK			setxattr, lsetxattr, fsetxattr - not root-specific
++OK			removexattr, lremovexattr, fremovexattr - ditto
++OK		258	set_tid_address - not root-specific, virtualized
++OK			timer_settime - not root-specific
++OK			clock_settime - same as settimeofday - CAP_SYS_TIME
++OK			vserver - non-existent (obviously)
++OK			set_mempolicy - not root-specific
++OK			sys_kexec_load - non-existent
++OK			fairsched_mknod - CAP_SETVEID
++OK			fairsched_rmnod - CAP_SETVEID
++OK			fairsched_chwt - CAP_SETVEID
++OK			fairsched_mvpr - CAP_SETVEID
++OK			fairsched_rate - CAP_SETVEID
++OK			setluid - VE0 only (but some processing done pre-check)
++OK			lchmod - not root-specific
++OK			lutime - not root-specific
++		ioctls available to VPS root but not to users
++			brute-force all majors/minors and list open()able ones
++OK				c 1 3,5,8,9 - null,zero,random,urandom
++R					can exhaust kernel randomness - YES
++R					console keystrokes infoleaks
++				c 2 - Pseudo-TTY masters
++BR					kernel Oops
++OK				c 3 - Pseudo-TTY slaves
++OK				c 5 0,2 - tty,ptmx
++OK				c 128 - Unix98 PTY masters
++OK				c 136 - Unix98 PTY slaves
++OK t		sysctls (there's logic in the patch, but it should be tested)
+		socket options
+		...
+	copying from/to userspace:
+		missing copy_{to,from}_user and equivalents
++OK			user_path_walk_link() (sys_lchmod, sys_lutime)
+			...
++OK		uses of __{get,put}_user where "non-underscored" are required
++OK			__get_user, __direct_get_user added with OVZ
++OK			__put_user, __direct_put_user added with OVZ
++OK		uses of __copy_{to,from}_user where "non-underscored" are req
++OK			get_futex_value_locked() - OK due to get_futex_key()
+		missing checks of return values from the above
+	race conditions (this list intersects with other parts of checklist...)
+		in particular with syscall wrappers, if any
++OK			sys_quotactl(), compat_quotactl()
++OK			sys_wait4() in do_initproc_exit()
++OK			uses of sys_fairsched_{mknod,mvpr,rmnod}() - int args
+			any others?
++OK		faudit_statfs() (sys_*statfs*)
++BF		do_add_counters() (only the ip_tables.c instance is fixed)
++BF		do_env_enter()
+		temporary set_exec_env(get_ve0()), set_exec_ub(get_ub0()), etc.
++OK			is the exec_env pointer private to each task_struct?
++OK			is the exec_ub pointer private to each task_struct?
++R			is there really no way for current task to gain control?
+			there must be no checks of non-current task's exec_env
+	integer overflows
+		especially when calculating required allocation sizes
++			with *[kv]malloc touched by the patch
++BF				ipt_table_info_alloc()
+			with *[kv]malloc in mainstream, but VPS root triggerable
+	missing bounds checking
+		*memcpy*
+		*strcpy, *strcat
++OK			net/ipv4/netfilter/ip_tables.c: IPT_SO_GET_INFO
+		copy_{to,from}_user
++BF t	classical chroot break
++	PTRACE_ATTACH, kill, setpriority with matching UID
++BR t		host->VPS
++OK t		VPS->host, VPS-VPS (should get ESRCH?)
++ND	effect of host filesystem mount flags on VPS:
++ND		nosuid, nodev, noexec - ignored
+	*[kv]mallocs of user-controlled amounts of memory with no sanity limits
++OK		*kmalloc introduced/patched in OVZ, including:
++OK			log_buf_len - where set? ve_log_init() - who calls it?
++OK			clone_sysctl_template()
++OK			alloc_ve_tty_driver()
++OK			VZCTL_ENV_CREATE_DATA:
++OK			ALLOC_ENVCTL()
++		*vmalloc introduced/patched in OVZ, including:
++OK			fairsched_do_dump()
++OK			page_beancounters_init()
++OK			sys_swapon() - requires CAP_SYS_ADMIN
++OK			ip_conntrack_init()
++OK			ip_nat_init()
+		*kmalloc in mainstream which became VPS root triggerable
+			net/compat.c? - for 64-bit archs (not root-only?)
+		*vmalloc in mainstream which became VPS root triggerable
++BUR			other instances of do_replace()
+	review all of the OVZ-introduced code in its entirety
+		kernel/ub/* include/ub/*
++BF		do_env_enter() - capabilities set after veid - race?
++B?F		do_env_create() - same as above, but VE not yet running
++OK		do_initproc_exit()
++OK		compat_quotactl(), changes to sys_quotactl()
++OK		sys_sched_setscheduler() use in stop_machine() - back-port
++OK		arch/i386/kernel/i387.c - not sure why in OVZ, but OK
++		arch/i386/kernel/signal.c
++OK			restore_sigcontext(), setup_sigcontext()
++OK			setup_rt_frame()
+-			*_sigsuspend(), do_signal()
++/-		arch/i386/kernel/traps.c
++OK		drivers/char/sysrq.c
++/-		include/asm-i386/uaccess.h - 4G/4G split
++OK		arch/i386/kernel/sys_i386.c
+		...
+	identify potentially not beancounted / not limited resources
++BR+t		route table
++BR+t		interfaces (aliases)
++OK+t		loopback mounts - open and kernel_thread not allowed
++BR+t		bind mounts (no explicit limit, but counted against kmemsize)
++BR+t		tmpfs mounts (no explicit limit, but counted against dcache)
++OK t		tmpfs allocations (counted against shmpages)
+		...
+	identify potential abuses of the scheduler
++R t		SCHED_FIFO, SCHED_RR (DoS "vzctl stop")
+		...
+	user (and VPS root) triggerable printk() calls:
+		within OVZ patch context
+			non-rate-limited
+			with user-controlled input (character strings only)
+		elsewhere
+			non-rate-limited
+			with user-controlled input (character strings only)
++OK	attacks via corrupted filesystems - can't open loop devices
+-	covert channels - explicitly exclude from audit
+	mainstream kernel security bugs fixed after 2.6.8.1
+--- user-space:
++B	vz* utils must not trust target VPS directory trees (they're /tmp-like)
++BR		what about host system's yum/rpm, does vzpkg use them on VPS?
++BR			cache-os, vzyum use host's yum on running VPS
++BR			vzrpm script uses host's rpm on running VPS
++B	vzrpm
++OK		rpm-4.4-vzctl.patch (OK, but insufficient)
++BR		other uses of chroot() in RPM; NSS, "." outside of chroot
+-?		other patches in vzrpm
+	when vz* utils enter a VPS context, can the VPS attack them?
++BF		do_env_enter() - capabilities set after veid - race?
+		...
++BR	perms on /vz/{private,root} should be 700
++R		if not enforced, problems with host system UIDs matching VPS'
++R		potentially fd passing (host non-root + VPS root => host root)
+	vzctl
++NDR		doc: warn about non-default capabilities
++BR		potential fd leaks into VPS (e.g., from vzctl's parent shell)
++B?R			fd's are closed _after_ the ioctl - but unptracable now
++BR			only first 16 fd's are closed
++		vzctl.spec:
++BR			"/bin/mknod /dev/vzctl c 126 0" - depends on umask
+		...
++	vzquota
++R		quotacheck.c - safe on stopped VPS, unsafe on running one
++			lstat() to open() race if running on live VPS
++			lstat() to chdir() race if running on live VPS
++			".." might change if running on live VPS
++OK		quota_io.c: open_quota_file() set perms to 600, no other O_CREAT
+-		... (the rest of vzquota appears to be mostly non-security)
++	BuildRoot: %{_tmppath}/%{name}-%{version}-root - minor risk with rm -r
+--- infrastructure:
+	signatures on downloadables, PGP key, signatures on the key
+		where signatures are made (workstations vs. build servers)
