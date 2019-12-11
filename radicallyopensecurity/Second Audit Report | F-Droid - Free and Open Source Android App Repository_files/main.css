@@ -1,0 +1,886 @@
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  src: local("Roboto"), local("Roboto-Regular"), url(/assets/roboto.ttf) format("truetype"); }
+body {
+  margin: 0;
+  font: 400 16px/1.5 Roboto, Arial, sans-serif;
+  color: #212121;
+  word-wrap: break-word; }
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 16px; }
+
+h1 {
+  font-size: 48px;
+  color: #757575;
+  font-weight: 600; }
+
+h2 {
+  font-size: 32px;
+  color: #757575;
+  font-weight: 600; }
+
+h3 {
+  font-size: 24px;
+  color: #212121;
+  font-weight: 400; }
+
+h4 {
+  font-size: 20px;
+  color: #212121;
+  font-weight: 400; }
+
+h5 {
+  font-size: 16px;
+  color: #212121;
+  font-weight: 600; }
+
+h6 {
+  font-size: 16px;
+  color: #212121;
+  font-weight: 600;
+  font-style: italic; }
+
+a {
+  color: #1976d2;
+  transition: opacity .2s;
+  text-decoration: none; }
+  a:visited {
+    color: #11508e; }
+  a:hover {
+    opacity: .65;
+    text-decoration: underline; }
+  a:active {
+    opacity: .5; }
+
+pre {
+  white-space: pre-wrap; }
+
+/** Remove default list styles from UL elements. */
+.site-header, .main-content {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  position: relative; }
+
+/**
+ * F-Droid's Jekyll Plugin
+ *
+ * Copyright (C) 2017 Nico Alt
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+/**
+ * Browsing
+ */
+.package-header, .package-header:visited {
+  display: flex;
+  align-items: top;
+  color: #212121;
+  margin-bottom: 10.66667px; }
+  .package-header:hover, .package-header:visited:hover {
+    text-decoration: none; }
+  .package-header .package-icon, .package-header:visited .package-icon {
+    width: 48px;
+    height: 48px;
+    margin-top: 8px;
+    margin-right: 16px; }
+  .package-header .package-name, .package-header:visited .package-name {
+    margin: 0; }
+  .package-header .package-license, .package-header:visited .package-license {
+    color: #757575; }
+    .package-header .package-license:before, .package-header:visited .package-license:before {
+      content: " ("; }
+    .package-header .package-license:after, .package-header:visited .package-license:after {
+      content: ")"; }
+
+/**
+ * List of packages for sidebar. Show a more condensed view than the full list of packages.
+ */
+.sidebar-widget .package-header .package-icon {
+  width: 40px;
+  height: 40px; }
+.sidebar-widget .package-header .package-name {
+  font-size: 17.6px; }
+.sidebar-widget .package-header .package-summary, .sidebar-widget .package-header .package-license {
+  color: #757575;
+  font-size: 14.4px; }
+
+.browse-navigation {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: inline-block;
+  margin: 1em; }
+  .browse-navigation .nav {
+    display: inline;
+    float: left;
+    color: #212121; }
+    .browse-navigation .nav .label {
+      border: solid 1px #aaa;
+      margin: 0 0 0 -1px;
+      text-align: center;
+      padding: 0.25em 0.5em; }
+    .browse-navigation .nav.disabled {
+      color: #bbb; }
+    .browse-navigation .nav.active .label {
+      background-color: #edf5fd; }
+    .browse-navigation .nav:first-child .label {
+      border-top-left-radius: 0.2em;
+      border-bottom-left-radius: 0.2em; }
+    .browse-navigation .nav:last-child .label {
+      border-top-right-radius: 0.2em;
+      border-bottom-right-radius: 0.2em; }
+    .browse-navigation .nav a {
+      color: #212121; }
+    .browse-navigation .nav a:hover {
+      text-decoration: none;
+      background: #4e9cea; }
+  @media screen and (max-width: 750px) {
+    .browse-navigation .nav .label {
+      display: none; }
+    .browse-navigation .nav.page.active .label,
+    .browse-navigation .nav.previous .label,
+    .browse-navigation .nav.next .label {
+      display: inline; } }
+
+/**
+ * Packages view
+ */
+.package-versions-list {
+  list-style: none;
+  padding-left: 0; }
+
+.package-version {
+  margin-bottom: 5px; }
+
+body {
+  background: #e5e5e5; }
+
+.site-wrapper {
+  max-width: 1032px;
+  margin: 0 auto;
+  padding: 0 16px; }
+  @media screen and (max-width: 750px) {
+    .site-wrapper {
+      padding: 0; } }
+
+/**
+ * Header
+ */
+.site-header {
+  background: #fff;
+  z-index: 1; }
+
+.site-title {
+  display: flex;
+  align-items: center; }
+  .site-title:hover {
+    text-decoration: none; }
+  .site-title img {
+    margin: 21.33333px;
+    height: 96px; }
+    @media screen and (max-width: 750px) {
+      .site-title img {
+        height: 64px; } }
+    @media screen and (max-width: 500px) {
+      .site-title img {
+        margin: 16px;
+        height: 48px; } }
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  background: #1976d2; }
+  .site-nav .page-link {
+    line-height: 48px;
+    padding: 0 16px;
+    background-color: #1976d2;
+    color: #fff !important;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background-color .2s; }
+    .site-nav .page-link:hover {
+      opacity: 1;
+      background-color: #378fe7;
+      text-decoration: none; }
+    .site-nav .page-link:active {
+      opacity: 1;
+      background-color: #64a9ed; }
+    .site-nav .page-link.current {
+      border-bottom: 6px solid rgba(255, 255, 255, 0.4);
+      line-height: 36px;
+      padding-top: 6px; }
+
+.material-button {
+  display: inline-block;
+  border: 0;
+  text-transform: uppercase;
+  line-height: 48px;
+  padding: 0 16px;
+  background-color: #1976d2;
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background-color .2s; }
+  .material-button:hover {
+    opacity: 1;
+    background-color: #378fe7;
+    text-decoration: none; }
+  .material-button:active {
+    opacity: 1;
+    background-color: #64a9ed; }
+
+/**
+ * Content
+ */
+.main-content {
+  background: #fff;
+  padding: 16px;
+  padding-top: 32px;
+  display: flex; }
+  .main-content.with-sidebar .article-area, .main-content.with-sidebar .sidebar {
+    flex-basis: auto;
+    width: 0px; }
+    @media screen and (max-width: 750px) {
+      .main-content.with-sidebar .article-area, .main-content.with-sidebar .sidebar {
+        width: auto; } }
+  .main-content.with-sidebar .article-area {
+    flex-grow: 4; }
+  .main-content.with-sidebar .sidebar {
+    flex-grow: 2;
+    padding: 0 0 0 32px; }
+    html[dir=rtl] .main-content.with-sidebar .sidebar {
+      padding: 0 32px 0 0; }
+  @media screen and (max-width: 750px) {
+    .main-content.with-sidebar {
+      flex-direction: column; }
+      .main-content.with-sidebar .sidebar {
+        padding-left: 0;
+        padding-top: 64px; } }
+
+.sidebar-widget {
+  margin-bottom: 32px; }
+  .sidebar-widget:not(:last-of-type) {
+    padding-bottom: 32px;
+    border-bottom: 1px solid #ccc; }
+  .sidebar-widget .donate-options {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    padding: 0.2em; }
+    .sidebar-widget .donate-options .donate-option {
+      display: inline-block;
+      vertical-align: middle;
+      padding: 0.2em; }
+      .sidebar-widget .donate-options .donate-option.bitcoin-url {
+        font-size: 0.9em;
+        word-break: break-all; }
+      .sidebar-widget .donate-options .donate-option.bank-transfer {
+        font-size: 0.9em;
+        font-weight: bold; }
+        .sidebar-widget .donate-options .donate-option.bank-transfer ul {
+          list-style: none;
+          padding: 0;
+          margin: 0; }
+        .sidebar-widget .donate-options .donate-option.bank-transfer li {
+          font-weight: normal; }
+      .sidebar-widget .donate-options .donate-option.hellotux {
+        font-size: 0.9em;
+        font-weight: bold; }
+        .sidebar-widget .donate-options .donate-option.hellotux ul {
+          list-style: none;
+          padding: 0;
+          margin: 0; }
+        .sidebar-widget .donate-options .donate-option.hellotux li {
+          font-weight: normal; }
+  .sidebar-widget .post-list {
+    list-style: none;
+    padding: 0;
+    margin: 0; }
+    .sidebar-widget .post-list li {
+      display: flex;
+      flex-direction: column-reverse;
+      padding-bottom: .3em;
+      max-width: 100%;
+      overflow: hidden; }
+      .sidebar-widget .post-list li .post-meta {
+        font-size: .9em;
+        color: #757575;
+        line-height: 1.2em; }
+
+.sidebar-hidden {
+  display: none; }
+
+/**
+ * News
+ */
+.post-meta img {
+  vertical-align: middle; }
+
+/**
+ * Image gallery - used by both Posts and Packages.
+ */
+.gallery {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: stretch;
+  list-style: none;
+  margin: 0;
+  padding: 0; }
+  .gallery img {
+    margin: 0.5em;
+    flex-grow: 1;
+    max-width: 300px;
+    box-shadow: 3px 3px 6px #aaa; }
+
+/**
+ * Post
+ */
+.post .post-content img {
+  box-shadow: 3px 3px 6px #aaa; }
+
+/**
+ * Package
+ */
+.package {
+  /**
+   * Screenshots on the app details page.
+   * These styles apply regardless of whether or not JS is enabled.
+   * Other screenshot styles which target .slides instead of .screenshots
+   * only apply when JS is enabled, as the .slides class is only applied
+   * via JS.
+   */
+  /**
+   * Most of the CSS for the screenshots is from the loryjs documentation:
+   * http://meandmax.github.io/lory/
+   * The customizations revolve around:
+   *
+   *   On large screens, overlap the next/previous buttons a little bit with the
+   *   leftmost and rightmost portions of the carousel. Also make the hit area the
+   *   entire height of the carousel.
+   *
+   *   On phone screens, hide the left/right feature completely, instead letting
+   *   users swipe left and right.
+   */ }
+  .package .feature-graphic {
+    width: 100%; }
+  .package .package-header .package-icon {
+    width: 76px;
+    height: 76px; }
+  .package .package-whats-new {
+    background: #eff4f9;
+    padding: 1em;
+    margin-bottom: 0.5em; }
+    .package .package-whats-new .new-in-version {
+      font-size: 1.2em;
+      margin-bottom: 0.4em; }
+  .package .package-description {
+    padding: .5em 0 1.5em; }
+    .package .package-description br {
+      margin-bottom: 0.5em; }
+  .package .package-version {
+    margin: 20px 0;
+    padding: 16px;
+    background: #F5F5F5; }
+    .package .package-version p {
+      margin: .4em 0; }
+  .package .package-anti-features-summary, .package .package-version-anti-feature-summary, .package .package-version-permissions-summary {
+    font-weight: bold;
+    cursor: pointer; }
+  .package .package-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: solid 1px #ccc;
+    border-bottom: solid 1px #ccc;
+    padding-top: 1em;
+    padding-bottom: 1em;
+    margin-bottom: 1em; }
+    .package .package-links .package-link {
+      display: inline;
+      word-break: keep-all; }
+      .package .package-links .package-link:after {
+        content: " | "; }
+      .package .package-links .package-link:last-of-type:after {
+        content: ""; }
+  .package .screenshot img {
+    max-width: 250px; }
+    @media screen and (max-width: 500px) {
+      .package .screenshot img {
+        width: 100%; } }
+  .package .slider {
+    position: relative; }
+    .package .slider .frame {
+      position: relative;
+      font-size: 0;
+      line-height: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      margin: 0 30px; }
+      @media screen and (max-width: 500px) {
+        .package .slider .frame {
+          margin: 0; } }
+    .package .slider .slides {
+      display: inline-block; }
+    .package .slider .screenshot {
+      position: relative;
+      display: inline-block;
+      vertical-align: middle;
+      margin: 10px; }
+      @media screen and (max-width: 500px) {
+        .package .slider .screenshot {
+          margin: 5px; } }
+    .package .slider .prev, .package .slider .next {
+      position: absolute;
+      display: block;
+      cursor: pointer;
+      margin-top: 0;
+      top: 0;
+      height: 100%;
+      width: 50px; }
+      .package .slider .prev.disabled svg, .package .slider .next.disabled svg {
+        opacity: 0.3; }
+      @media screen and (max-width: 500px) {
+        .package .slider .prev, .package .slider .next {
+          display: none; } }
+    .package .slider .next {
+      right: 0; }
+      .package .slider .next svg {
+        right: 0; }
+    .package .slider .prev {
+      left: 0; }
+    .package .slider .next svg, .package .slider .prev svg {
+      width: 25px;
+      position: absolute;
+      top: 50%;
+      margin-top: -25px; }
+  .package .package-version-permissions-list {
+    list-style-type: none;
+    margin-bottom: .8em; }
+    .package .package-version-permissions-list .permission {
+      position: relative;
+      margin-bottom: .2em; }
+      .package .package-version-permissions-list .permission:before {
+        content: "";
+        position: absolute;
+        width: 7px;
+        height: 3px;
+        margin-top: .7em;
+        margin-left: -.9em;
+        background-color: #444; }
+      .package .package-version-permissions-list .permission .permission-label {
+        font-weight: bold; }
+      .package .package-version-permissions-list .permission .permission-description {
+        color: #444;
+        font-size: .9em;
+        line-height: 1.3em; }
+
+/**
+ * Language chooser
+ */
+.sidebar-widget.language {
+  padding-bottom: 0.5em;
+  text-align: right; }
+  .sidebar-widget.language .lang-flag {
+    margin: 0 0.1em;
+    vertical-align: middle;
+    max-width: 2em;
+    max-height: 1em; }
+
+/**
+ * Search results
+ */
+.sidebar-widget div.awesomplete {
+  display: block !important; }
+  .sidebar-widget div.awesomplete li:hover, .sidebar-widget div.awesomplete li[aria-selected="true"] {
+    background: #1976d2 !important; }
+    .sidebar-widget div.awesomplete li:hover .package-header .package-name, .sidebar-widget div.awesomplete li:hover .package-header .package-desc .package-summary, .sidebar-widget div.awesomplete li[aria-selected="true"] .package-header .package-name, .sidebar-widget div.awesomplete li[aria-selected="true"] .package-header .package-desc .package-summary {
+      color: white; }
+  .sidebar-widget div.awesomplete .search-input {
+    width: 100%; }
+
+.sidebar-widget .connect-item {
+  display: flex; }
+  .sidebar-widget .connect-item .connect-icon {
+    width: 24px;
+    height: 24px; }
+  .sidebar-widget .connect-item .connect-label {
+    margin-left: 4px; }
+
+.search-form {
+  display: flex; }
+
+.search-input-wrp {
+  margin: 0 6px 0 0;
+  display: flex;
+  flex: 1; }
+  html[dir=rtl] .search-input-wrp {
+    margin: 0 0 0 6px; }
+
+.search-input {
+  padding: 0.4em;
+  font-size: 1.1em;
+  box-sizing: border-box;
+  width: 100%;
+  padding-left: 40px;
+  background: url("../assets/ic_search_black_24px.svg") no-repeat 10px center;
+  border-radius: 4px;
+  border: solid 1px #aaa; }
+
+.post-content .search-widget {
+  margin-bottom: 1em; }
+
+.search-input:focus {
+  margin: 0;
+  border: solid 2px #1976d2; }
+
+.results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin: 1em 0; }
+
+/**
+ * Footer
+ */
+.site-description {
+  font-size: 14px; }
+  @media screen and (max-width: 750px) {
+    .site-description {
+      padding: 0 16px;
+      text-align: center; } }
+
+.edit-this-page-area {
+  float: inline-end; }
+  @media screen and (max-width: 750px) {
+    .edit-this-page-area {
+      float: none;
+      display: block;
+      margin-top: .5em; } }
+
+/**
+ * Miscellaneous
+ */
+img {
+  /**
+   * There should be no reason for any image to spread beyond its parent container.
+   * This makes images responsive on smaller screens.
+   */
+  max-width: 100%; }
+
+/**
+ * Home page
+ */
+.download-and-screenshot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center; }
+  .download-and-screenshot .download {
+    padding: 1em;
+    text-align: center; }
+    .download-and-screenshot .download .qr img {
+      width: 200px; }
+    @media screen and (max-width: 750px) {
+      .download-and-screenshot .download .qr {
+        display: none; } }
+    @media screen and (max-width: 500px) {
+      .download-and-screenshot .download .qr {
+        display: none; } }
+  .download-and-screenshot .screenshot {
+    display: block;
+    max-width: 60%; }
+    @media screen and (max-width: 750px) {
+      .download-and-screenshot .screenshot {
+        max-width: 100%; } }
+    @media screen and (max-width: 500px) {
+      .download-and-screenshot .screenshot {
+        max-width: 100%; } }
+
+/**
+ * Tutorials
+ */
+.tutorial {
+  /* Allow an individual ".step" or entire collections of ".steps" to be tagged as ".medium" or ".large". */ }
+  .tutorial h2 {
+    color: #0066cc; }
+  .tutorial h3 {
+    padding-bottom: 14px;
+    margin-bottom: 0; }
+  .tutorial h4 {
+    /*font-family: HelveticaNeue-Medium, serif;*/
+    font-size: 12px;
+    color: #757575;
+    letter-spacing: 0.13px;
+    text-transform: uppercase;
+    margin-bottom: 8px; }
+  .tutorial .tutorial-overview {
+    list-style: none;
+    padding: 0;
+    margin: 0; }
+    .tutorial .tutorial-overview > li {
+      padding: 10px 0 10px 50px;
+      background: no-repeat left center; }
+      .tutorial .tutorial-overview > li.link {
+        background-image: url("../assets/tutorials/add-repo/icons/ic_link.svg"); }
+      .tutorial .tutorial-overview > li.qr {
+        background-image: url("../assets/tutorials/add-repo/icons/ic_qr.svg"); }
+      .tutorial .tutorial-overview > li.no-internet {
+        background-image: url("../assets/tutorials/add-repo/icons/ic_no_internet.svg"); }
+  .tutorial .steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap; }
+    .tutorial .steps .step {
+      box-sizing: border-box;
+      max-width: 24%;
+      padding: 21px; }
+      @media screen and (max-width: 750px) {
+        .tutorial .steps .step {
+          max-width: 32%; } }
+      @media screen and (max-width: 500px) {
+        .tutorial .steps .step {
+          max-width: 100%; } }
+      .tutorial .steps .step img {
+        width: 200px;
+        height: auto;
+        max-width: 100%; }
+        .tutorial .steps .step img:not(.irregular) {
+          box-shadow: #aaa 0 2px 5px; }
+      .tutorial .steps .step h4 {
+        margin: 1em 0 0.5em 0; }
+      .tutorial .steps .step p {
+        margin: 0; }
+  .tutorial .steps .step.medium, .tutorial .steps.medium .step {
+    max-width: 33%; }
+    .tutorial .steps .step.medium img, .tutorial .steps.medium .step img {
+      width: 350px;
+      height: auto;
+      max-width: 100%; }
+    @media screen and (max-width: 750px) {
+      .tutorial .steps .step.medium, .tutorial .steps.medium .step {
+        max-width: 49%; } }
+  .tutorial .steps .step.large, .tutorial .steps.large .step {
+    max-width: 49%; }
+    .tutorial .steps .step.large img, .tutorial .steps.large .step img {
+      width: 460px;
+      height: auto;
+      max-width: 100%; }
+    @media screen and (max-width: 750px) {
+      .tutorial .steps .step.large, .tutorial .steps.large .step {
+        max-width: 100%; } }
+  .tutorial .tutorial-paginator {
+    margin: -16px;
+    margin-top: 16px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    background-color: #f9f9f9; }
+    .tutorial .tutorial-paginator .next a {
+      text-align: right;
+      padding-right: 32px;
+      background: url("../assets/tutorials/icons/ic_right.svg") no-repeat right 5px; }
+    .tutorial .tutorial-paginator .previous a {
+      padding-left: 32px;
+      background: url("../assets/tutorials/icons/ic_left.svg") no-repeat left 5px; }
+    .tutorial .tutorial-paginator a {
+      display: block;
+      color: black; }
+      .tutorial .tutorial-paginator a:hover {
+        text-decoration: none; }
+    .tutorial .tutorial-paginator .label {
+      font-size: 1.3em; }
+
+.tutorials-list .tutorial-list-item {
+  margin-top: 48px; }
+  .tutorials-list .tutorial-list-item h3 {
+    font-weight: bold;
+    margin-bottom: 8px; }
+  .tutorials-list .tutorial-list-item .link {
+    margin: 12px 0;
+    font-size: 18px; }
+
+a.youtube {
+  position: relative;
+  /** Clever solution from https://stackoverflow.com/a/12660106/2391921 to overlay image on top with only CSS */ }
+  a.youtube:after {
+    position: absolute;
+    content: "";
+    pointer-events: none;
+    background: url("../assets/youtube-logo.png") no-repeat center;
+    background-size: cover;
+    width: 200px;
+    height: 200px;
+    left: calc(50% - 100px);
+    bottom: calc(50% + 100px); }
+
+/**
+ * Syntax highlighting styles
+ */
+/* Inline code styles */
+code.highlighter-rouge {
+  font-size: 0.9em;
+  background: #f5f5f5;
+  padding: 0.2em 0.3em; }
+
+/* Blocks of code */
+.highlight {
+  background: #f5f5f5;
+  padding: 0.8em;
+  font-size: 0.9em;
+  border: none;
+  white-space: pre;
+  overflow-y: auto;
+  box-shadow: 0 2px 3px #ccc; }
+  .highlight .c {
+    color: #998;
+    font-style: italic; }
+  .highlight .err {
+    color: #a61717;
+    background-color: #e3d2d2; }
+  .highlight .k {
+    font-weight: bold; }
+  .highlight .o {
+    font-weight: bold; }
+  .highlight .cm {
+    color: #998;
+    font-style: italic; }
+  .highlight .cp {
+    color: #999;
+    font-weight: bold; }
+  .highlight .c1 {
+    color: #998;
+    font-style: italic; }
+  .highlight .cs {
+    color: #999;
+    font-weight: bold;
+    font-style: italic; }
+  .highlight .gd {
+    color: #000;
+    background-color: #fdd; }
+  .highlight .gd .x {
+    color: #000;
+    background-color: #faa; }
+  .highlight .ge {
+    font-style: italic; }
+  .highlight .gr {
+    color: #a00; }
+  .highlight .gh {
+    color: #999; }
+  .highlight .gi {
+    color: #000;
+    background-color: #dfd; }
+  .highlight .gi .x {
+    color: #000;
+    background-color: #afa; }
+  .highlight .go {
+    color: #888; }
+  .highlight .gp {
+    color: #555; }
+  .highlight .gs {
+    font-weight: bold; }
+  .highlight .gu {
+    color: #aaa; }
+  .highlight .gt {
+    color: #a00; }
+  .highlight .kc {
+    font-weight: bold; }
+  .highlight .kd {
+    font-weight: bold; }
+  .highlight .kp {
+    font-weight: bold; }
+  .highlight .kr {
+    font-weight: bold; }
+  .highlight .kt {
+    color: #458;
+    font-weight: bold; }
+  .highlight .m {
+    color: #099; }
+  .highlight .s {
+    color: #d14; }
+  .highlight .na {
+    color: #008080; }
+  .highlight .nb {
+    color: #0086B3; }
+  .highlight .nc {
+    color: #458;
+    font-weight: bold; }
+  .highlight .no {
+    color: #008080; }
+  .highlight .ni {
+    color: #800080; }
+  .highlight .ne {
+    color: #900;
+    font-weight: bold; }
+  .highlight .nf {
+    color: #900;
+    font-weight: bold; }
+  .highlight .nn {
+    color: #555; }
+  .highlight .nt {
+    color: #000080; }
+  .highlight .nv {
+    color: #008080; }
+  .highlight .ow {
+    font-weight: bold; }
+  .highlight .w {
+    color: #bbb; }
+  .highlight .mf {
+    color: #099; }
+  .highlight .mh {
+    color: #099; }
+  .highlight .mi {
+    color: #099; }
+  .highlight .mo {
+    color: #099; }
+  .highlight .sb {
+    color: #d14; }
+  .highlight .sc {
+    color: #d14; }
+  .highlight .sd {
+    color: #d14; }
+  .highlight .s2 {
+    color: #d14; }
+  .highlight .se {
+    color: #d14; }
+  .highlight .sh {
+    color: #d14; }
+  .highlight .si {
+    color: #d14; }
+  .highlight .sx {
+    color: #d14; }
+  .highlight .sr {
+    color: #009926; }
+  .highlight .s1 {
+    color: #d14; }
+  .highlight .ss {
+    color: #990073; }
+  .highlight .bp {
+    color: #999; }
+  .highlight .vc {
+    color: #008080; }
+  .highlight .vg {
+    color: #008080; }
+  .highlight .vi {
+    color: #008080; }
+  .highlight .il {
+    color: #099; }
